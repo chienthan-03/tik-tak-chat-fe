@@ -1,0 +1,36 @@
+.messages {
+    display: flex;
+    flex-direction: column;
+    overflow-y: scroll;
+    scrollbar-width: none;
+
+  }
+
+@keyframes animation {
+  to {
+    background-color: rgb(228, 227, 227);
+    margin-right: 2px;
+  }
+}
+
+.chat--hover:hover {
+  animation: animation .3s alternate forwards;
+}
+
+@keyframes animationS {
+  to {
+    width: 96%;
+  }
+}
+
+.search--hover:hover {
+  animation: animationS .3s alternate forwards;
+}
+
+.last-message {
+  overflow: hidden;
+  /* max-width: 100px; */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
