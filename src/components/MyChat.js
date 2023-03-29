@@ -21,7 +21,10 @@ function MyChat({ fetchAgain }) {
         },
       };
 
-      const { data } = await axios.get("/api/chat", config);
+      const { data } = await axios.get(
+        "https://tik-tak-chat-be.onrender.com/api/chat",
+        config
+      );
       setChats(data);
     } catch (error) {
       toast({

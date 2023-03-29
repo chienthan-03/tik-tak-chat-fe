@@ -150,7 +150,7 @@ const SideDrawer = () => {
         },
       };
       await axios.put(
-        "/api/user/editProfile",
+        "https://tik-tak-chat-be.onrender.com/api/user/editProfile",
         {
           pic: pic,
           name: name,
@@ -201,7 +201,10 @@ const SideDrawer = () => {
           Authorization: `Bearer ${user.token}`,
         },
       };
-      const { data } = await axios.get(`/api/user?search=${search}`, config);
+      const { data } = await axios.get(
+        `https://tik-tak-chat-be.onrender.com/api/user?search=${search}`,
+        config
+      );
       setLoading(false);
       setSearchResult(data);
     } catch (error) {
@@ -224,7 +227,11 @@ const SideDrawer = () => {
           Authorization: `Bearer ${user.token}`,
         },
       };
-      const { data } = await axios.post(`/api/chat`, { userId }, config);
+      const { data } = await axios.post(
+        `https://tik-tak-chat-be.onrender.com/api/chat`,
+        { userId },
+        config
+      );
       if (!chats.find((c) => c._id === data._id)) setChats([data, ...chats]);
       setLoadingChat(false);
       setSelectedChat(data);
@@ -268,7 +275,7 @@ const SideDrawer = () => {
         },
       };
       await axios.put(
-        `/api/user/editPass`,
+        `https://tik-tak-chat-be.onrender.com/api/user/editPass`,
         {
           email: user.email,
           password: password,
