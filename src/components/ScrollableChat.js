@@ -75,7 +75,7 @@ function ScrollableChat({ messages, setFetchAgain, fetchAgain, fetchMessage }) {
               isLastMessage(messages, i, user._id)) && (
               <Tooltip label={m.sender.name} placement="left" hasArrow>
                 <Avatar
-                  mt="10px"
+                  mt="7px"
                   mr={1}
                   size="sm"
                   cursor="pointer"
@@ -89,11 +89,10 @@ function ScrollableChat({ messages, setFetchAgain, fetchAgain, fetchMessage }) {
                 maxW="75%"
                 minW="120px"
                 marginLeft={isSameSenderMargin(messages, m, i, user._id)}
-                marginTop={isSameUser(messages, m, i, user) ? 2 : 10}
                 display="flex"
                 alignItems="center"
               >
-                {!isSameSender(messages, m, i, user._id) && (
+                {m.sender._id === user._id && (
                   <Menu>
                     <MenuButton
                       color="#33333348"
@@ -123,8 +122,7 @@ function ScrollableChat({ messages, setFetchAgain, fetchAgain, fetchMessage }) {
                     borderRadius: "20px",
                     padding: "10px 15px",
                     minWidth: "120px",
-                    marginLeft: isSameSenderMargin(messages, m, i, user._id),
-                    marginTop: isSameUser(messages, m, i, user) ? 3 : 10,
+                    marginTop: isSameUser(messages, m, i, user) ? 6 : 10,
                   }}
                 >
                   <Text fontSize={{ base: "1rem", sm: "1.2rem" }}>
@@ -158,6 +156,7 @@ function ScrollableChat({ messages, setFetchAgain, fetchAgain, fetchMessage }) {
                   padding: "10px 15px",
                   maxWidth: "75%",
                   minWidth: "120px",
+                  backgroundColor: "transparent",
                   marginLeft: isSameSenderMargin(messages, m, i, user._id),
                   marginTop: isSameUser(messages, m, i, user) ? 6 : 10,
                 }}
