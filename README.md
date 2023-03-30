@@ -8,9 +8,9 @@ link demo: https://tiktak-gamma.vercel.app/
 
 ## functions:
 * chat real-time
-* box chat group, one-one
+* box chat group (update name, add, remove user), one-one
 * login, logout, register access
-* notifycation message
+* notifycation message, delete message
 * edit password, avatar, name
 * search user
 
