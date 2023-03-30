@@ -1,9 +1,18 @@
 # Chat app realtime
+link demo: https://tiktak-gamma.vercel.app/
 * react (create-react-app)
 * chakra-ui
 * socket.io
 * deploy by vercel
 * responsive (moblie, ipad, ipad pro, small tablet)
+
+## functions:
+* chat real-time
+* box chat group, one-one
+* login, logout, register access
+* notifycation message
+* edit password, avatar, name
+* search user
 
 1. login, register page
 ![image](https://user-images.githubusercontent.com/101584126/228760721-4fc03163-3e8d-4515-aff3-77efc9938384.png)
@@ -14,12 +23,6 @@
 ![image](https://user-images.githubusercontent.com/101584126/228761822-08372ca4-0503-4871-9c6f-05776f820d5f.png)
 ![image](https://user-images.githubusercontent.com/101584126/228761899-7cd22266-04f9-48ed-ad30-9d7ef85e9516.png)
 
-## functions:
-* chat real-time
-* box chat group, one-one
-* login, logout, register access
-* notifycation message
-* edit password, avatar, name
-* search user
+
 
 
