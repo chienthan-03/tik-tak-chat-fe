@@ -4,7 +4,7 @@ link demo: https://tiktak-gamma.vercel.app/
 * chakra-ui
 * socket.io
 * deploy by vercel
-* responsive (moblie, ipad, ipad pro, small tablet)
+* responsive (moblie, ipad, ipad pro, small tablet, pc)
 
 ## functions:
 * chat real-time
