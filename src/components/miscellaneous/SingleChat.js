@@ -79,6 +79,39 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
       });
     }
   };
+  const handleSentMess = async () => {
+    socket.emit("stop typing", seletedChat._id);
+    try {
+      const config = {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user.token}`,
+        },
+      };
+
+      setNewMessage("");
+      const { data } = await axios.post(
+        "https://tik-tak-chat-be.onrender.com/api/message",
+        {
+          content: newMessage,
+          chatId: seletedChat._id,
+        },
+        config
+      );
+      setFetchAgain(!fetchAgain);
+      socket.emit("new message", data);
+      setMessages([...messages, data]);
+    } catch (error) {
+      toast({
+        title: "Error Occured!!",
+        description: "Failed to send message",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+        position: "bottom",
+      });
+    }
+  };
 
   const sendMessage = async (event) => {
     if (event.key === "Enter" && newMessage) {
@@ -268,7 +301,11 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
                 w="97%"
                 onChange={typingHandler}
               />
-              <IconButton marginLeft="3px" colorScheme="blackAlpha">
+              <IconButton
+                marginLeft="3px"
+                colorScheme="blackAlpha"
+                onClick={handleSentMess}
+              >
                 <SendIcon />
               </IconButton>
             </FormControl>

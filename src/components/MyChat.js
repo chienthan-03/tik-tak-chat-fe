@@ -75,7 +75,7 @@ function MyChat({ fetchAgain }) {
       </Box>
       <Box
         dislay="flex"
-        flexDir="column"
+        flexDirection="column"
         p={3}
         bgColor="rgb(247,240,235)"
         w="100%"
@@ -85,7 +85,7 @@ function MyChat({ fetchAgain }) {
       >
         {chats ? (
           <Stack overflowY="scroll">
-            {chats.map((chat) => (
+            {chats.reverse().map((chat) => (
               <Box
                 onClick={() => setSelectedChat(chat)}
                 className="chat--hover"
