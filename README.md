@@ -1,4 +1,4 @@
 # Chat app realtime
-*react (create-react-app)
-*chakra-ui
-*socket.io
+* react (create-react-app)
+* chakra-ui
+* socket.io
