@@ -1,6 +1,6 @@
 # Chat app realtime
 link demo: https://tiktak-gamma.vercel.app/
-* react (create-react-app)
+* react
 * chakra-ui
 * socket.io
 * deploy by vercel
