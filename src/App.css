@@ -2,7 +2,6 @@
 .App {
     min-height: 100vh;
     display: flex;
-    /* background-image: linear-gradient(-20deg, rgb(236, 244, 248), rgb(178, 219, 248)); */
     background-image: url("./img/skyBgok.jpg");
     background-size: cover;
     background-position: center;

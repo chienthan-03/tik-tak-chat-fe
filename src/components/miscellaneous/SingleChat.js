@@ -60,7 +60,7 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
 
       setLoading(true);
       const { data } = await axios.get(
-        `https://tik-tak-chat-be.onrender.com/api/message/${seletedChat._id}`,
+        `http://localhost:4000/api/message/${seletedChat._id}`,
         config
       );
 
@@ -91,7 +91,7 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
 
       setNewMessage("");
       const { data } = await axios.post(
-        "https://tik-tak-chat-be.onrender.com/api/message",
+        "http://localhost:4000/api/message",
         {
           content: newMessage,
           chatId: seletedChat._id,
@@ -126,7 +126,7 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
 
         setNewMessage("");
         const { data } = await axios.post(
-          "https://tik-tak-chat-be.onrender.com/api/message",
+          "http://localhost:4000/api/message",
           {
             content: newMessage,
             chatId: seletedChat._id,

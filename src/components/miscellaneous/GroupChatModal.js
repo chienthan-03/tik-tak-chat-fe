@@ -23,7 +23,6 @@ function GroupChatModal({ children }) {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [groupChatName, setGroupChatName] = useState();
   const [selectedUsers, setSelectedUsers] = useState([]);
-  const [search] = useState("");
   const [searchResult, setSearchResult] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -33,19 +32,18 @@ function GroupChatModal({ children }) {
     if (!query) return;
     try {
       setLoading(true);
-
       const config = {
         headers: {
           Authorization: `Bearer ${user.token}`,
         },
       };
       const { data } = await axios.get(
-        `https://tik-tak-chat-be.onrender.com/api/user?search=${search}`,
+        `http://localhost:4000/api/user?search=${query}`,
         config
       );
-      // console.log(data)
       setLoading(false);
       setSearchResult(data);
+      console.log(data);
     } catch (error) {
       toast({
         title: "Error Occured!",
@@ -91,7 +89,7 @@ function GroupChatModal({ children }) {
         },
       };
       const { data } = await axios.post(
-        "https://tik-tak-chat-be.onrender.com/api/chat/group",
+        "http://localhost:4000/api/chat/group",
         {
           name: groupChatName,
           users: JSON.stringify(selectedUsers.map((u) => u._id)),

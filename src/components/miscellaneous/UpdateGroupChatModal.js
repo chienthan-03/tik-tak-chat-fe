@@ -45,7 +45,7 @@ function UpdateGroupChatModal({ fetchAgain, setFetchAgain, fetchMessages }) {
         },
       };
       const { data } = await axios.put(
-        "https://tik-tak-chat-be.onrender.com/api/chat/rename",
+        "http://localhost:4000/api/chat/rename",
         {
           chatId: seletedChat._id,
           chatName: groupChatName,
@@ -80,7 +80,7 @@ function UpdateGroupChatModal({ fetchAgain, setFetchAgain, fetchMessages }) {
         },
       };
       const { data } = await axios.get(
-        `https://tik-tak-chat-be.onrender.com/api/user?search=${search}`,
+        `http://localhost:4000/api/user?search=${search}`,
         config
       );
       // console.log(data)
@@ -127,7 +127,7 @@ function UpdateGroupChatModal({ fetchAgain, setFetchAgain, fetchMessages }) {
         },
       };
       const { data } = await axios.put(
-        "https://tik-tak-chat-be.onrender.com/api/chat/groupAdd",
+        "http://localhost:4000/api/chat/groupAdd",
         {
           chatId: seletedChat._id,
           userId: user1._id,
@@ -170,7 +170,7 @@ function UpdateGroupChatModal({ fetchAgain, setFetchAgain, fetchMessages }) {
         },
       };
       const { data } = await axios.put(
-        "https://tik-tak-chat-be.onrender.com/api/chat/groupremove",
+        "http://localhost:4000/api/chat/groupremove",
         {
           chatId: seletedChat._id,
           userId: user1._id,

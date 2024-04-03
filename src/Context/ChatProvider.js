@@ -23,7 +23,8 @@ const ChatProvider = ({ children }) => {
   }, [history]);
 
   useEffect(() => {
-    setSocket(io("https://tik-tak-chat-be.onrender.com"));
+    setSocket(io("http://localhost:4000/"));
+    // http://localhost:4000
   }, []);
 
   return (

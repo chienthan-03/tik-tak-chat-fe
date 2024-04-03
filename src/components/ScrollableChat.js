@@ -40,7 +40,7 @@ function ScrollableChat({ messages, setFetchAgain, fetchAgain, fetchMessage }) {
         },
       };
       await axios.put(
-        `https://tik-tak-chat-be.onrender.com/api/message/remove/${id}`,
+        `http://localhost:4000/api/message/remove/${id}`,
         { userId: user._id },
         config
       );
