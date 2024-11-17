@@ -46,7 +46,7 @@ const Login = () => {
       };
 
       const { data } = await axios.post(
-        "http://localhost:4000/api/user/login",
+        "https://tik-tak-chat-be.onrender.com/api/user/login",
         { email, password },
         config
       );

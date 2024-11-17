@@ -34,15 +34,16 @@ function ScrollableChat({ messages, setFetchAgain, fetchAgain, fetchMessage }) {
   const handleRemoveMess = async (id) => {
     try {
       setLoading(true);
-      const config = {
-        headers: {
-          Authorization: `Bearer ${user.token}`,
-        },
-      };
-      await axios.put(
-        `http://localhost:4000/api/message/remove/${id}`,
-        { userId: user._id },
-        config
+      await axios.delete(
+        `https://tik-tak-chat-be.onrender.com/api/message/remove/${id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${user.token}`,
+          },
+          data: {
+            userId: user._id,
+          },
+        }
       );
       setFetchAgain(!fetchAgain);
       fetchMessage();

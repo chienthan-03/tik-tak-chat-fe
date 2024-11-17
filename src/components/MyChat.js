@@ -22,7 +22,7 @@ function MyChat({ fetchAgain }) {
       };
 
       const { data } = await axios.get(
-        "http://localhost:4000/api/chat",
+        "https://tik-tak-chat-be.onrender.com/api/chat",
         config
       );
       setChats(data);
@@ -85,7 +85,7 @@ function MyChat({ fetchAgain }) {
       >
         {chats ? (
           <Stack overflowY="scroll">
-            {chats.reverse().map((chat) => (
+            {chats.map((chat) => (
               <Box
                 onClick={() => setSelectedChat(chat)}
                 className="chat--hover"

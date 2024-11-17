@@ -121,7 +121,7 @@ const Signup = () => {
         },
       };
       const { data } = await axios.post(
-        "http://localhost:4000/api/user",
+        "https://tik-tak-chat-be.onrender.com/api/user",
         {
           name,
           email,

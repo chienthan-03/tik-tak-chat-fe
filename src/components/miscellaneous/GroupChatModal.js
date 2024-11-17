@@ -38,7 +38,7 @@ function GroupChatModal({ children }) {
         },
       };
       const { data } = await axios.get(
-        `http://localhost:4000/api/user?search=${query}`,
+        `https://tik-tak-chat-be.onrender.com/api/user?search=${query}`,
         config
       );
       setLoading(false);
@@ -89,7 +89,7 @@ function GroupChatModal({ children }) {
         },
       };
       const { data } = await axios.post(
-        "http://localhost:4000/api/chat/group",
+        "https://tik-tak-chat-be.onrender.com/api/chat/group",
         {
           name: groupChatName,
           users: JSON.stringify(selectedUsers.map((u) => u._id)),
