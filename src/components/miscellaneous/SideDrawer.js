@@ -150,7 +150,7 @@ const SideDrawer = () => {
         },
       };
       await axios.put(
-        "https://tik-tak-chat-be.onrender.com/api/user/editProfile",
+        "http://localhost:4000/api/user/editProfile",
         {
           pic: pic,
           name: name,
@@ -202,7 +202,7 @@ const SideDrawer = () => {
         },
       };
       const { data } = await axios.get(
-        `https://tik-tak-chat-be.onrender.com/api/user?search=${search}`,
+        `http://localhost:4000/api/user?search=${search}`,
         config
       );
       setLoading(false);
@@ -228,7 +228,7 @@ const SideDrawer = () => {
         },
       };
       const { data } = await axios.post(
-        `https://tik-tak-chat-be.onrender.com/api/chat`,
+        `http://localhost:4000/api/chat`,
         { userId },
         config
       );
@@ -275,7 +275,7 @@ const SideDrawer = () => {
         },
       };
       await axios.put(
-        `https://tik-tak-chat-be.onrender.com/api/user/editPass`,
+        `http://localhost:4000/api/user/editPass`,
         {
           email: user.email,
           password: password,

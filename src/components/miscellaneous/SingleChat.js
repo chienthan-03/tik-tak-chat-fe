@@ -2,34 +2,35 @@ import {
   Avatar,
   AvatarGroup,
   Box,
-  FormControl,
   IconButton,
-  Input,
   Spinner,
   Text,
   useToast,
 } from "@chakra-ui/react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { ChatState } from "../../Context/ChatProvider";
 import { ArrowBackIcon } from "@chakra-ui/icons";
 import { getSender, getSenderPic } from "../../config/ChatLogic";
 import UpdateGroupChatModal from "./UpdateGroupChatModal";
 import axios from "axios";
 import "../style.css";
-import SendIcon from "@mui/icons-material/Send";
 import ScrollableChat from "../ScrollableChat";
 import Lottie from "react-lottie";
 import animationData from "../../animation/loadingChat.json";
+import MessageInput from "./MessageInput";
+import VideoCall from "./VideoCall";
 
 var seletedCompare;
-
+const PAGESIZE = 30;
 function SingleChat({ fetchAgain, setFetchAgain }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [newMessage, setNewMessage] = useState();
+  const [loadingMore, setLoadingMore] = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
-  const [typing, setTyping] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const observer = useRef();
 
   const {
     user,
@@ -49,118 +50,56 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
       preserveAspectRatio: "xMidYMid slice",
     },
   };
-  const fetchMessage = async () => {
-    if (!seletedChat) return;
-    try {
-      const config = {
-        headers: {
-          Authorization: `Bearer ${user.token}`,
-        },
-      };
 
-      setLoading(true);
-      const { data } = await axios.get(
-        `https://tik-tak-chat-be.onrender.com/api/message/${seletedChat._id}`,
-        config
-      );
-
-      setMessages(data);
-      setLoading(false);
-
-      socket.emit("join chat", seletedChat._id);
-    } catch (error) {
-      toast({
-        title: "Error Occured!!",
-        description: "Failed to load the messages",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-        position: "bottom",
-      });
-    }
-  };
-  const handleSentMess = async () => {
-    socket.emit("stop typing", seletedChat._id);
-    try {
-      const config = {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${user.token}`,
-        },
-      };
-
-      setNewMessage("");
-      const { data } = await axios.post(
-        "https://tik-tak-chat-be.onrender.com/api/message",
-        {
-          content: newMessage,
-          chatId: seletedChat._id,
-        },
-        config
-      );
-      setFetchAgain(!fetchAgain);
-      socket.emit("new message", data);
-      setMessages([...messages, data]);
-    } catch (error) {
-      toast({
-        title: "Error Occured!!",
-        description: "Failed to send message",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-        position: "bottom",
-      });
-    }
-  };
-
-  const sendMessage = async (event) => {
-    if (event.key === "Enter" && newMessage) {
-      socket.emit("stop typing", seletedChat._id);
+  const fetchMessage = useCallback(
+    async (page = 1, append = false) => {
+      if (!seletedChat) return;
       try {
+        if (page === 1) {
+          setLoading(true);
+        } else {
+          setLoadingMore(true);
+        }
         const config = {
           headers: {
-            "Content-Type": "application/json",
             Authorization: `Bearer ${user.token}`,
           },
         };
 
-        setNewMessage("");
-        const { data } = await axios.post(
-          "https://tik-tak-chat-be.onrender.com/api/message",
-          {
-            content: newMessage,
-            chatId: seletedChat._id,
-          },
+        const { data } = await axios.get(
+          `http://localhost:4000/api/message/paginated/${seletedChat._id}?page=${page}&pageSize=${PAGESIZE}`,
           config
         );
-        setFetchAgain(!fetchAgain);
-        socket.emit("new message", data);
-        setMessages([...messages, data]);
+
+        if (data.messages.length === 0) {
+          setHasMore(false);
+        }
+
+        setMessages((prev) =>
+          append ? [...data.messages, ...prev] : data.messages
+        );
+        if (page === 1) {
+          setLoading(false);
+        } else {
+          setLoadingMore(false);
+        }
       } catch (error) {
         toast({
-          title: "Error Occured!!",
-          description: "Failed to send message",
+          title: "Error Occurred!!",
+          description: "Failed to load the messages",
           status: "error",
           duration: 3000,
           isClosable: true,
           position: "bottom",
         });
       }
-    }
-  };
-  useEffect(() => {
-    socket.emit("setup", user);
-    socket.on("connected", () => setSocketConnected(true));
-    socket.on("typing", () => setIsTyping(true));
-    socket.on("stop typing", () => setIsTyping(false));
-  }, []);
-  useEffect(() => {
-    fetchMessage();
-    seletedCompare = seletedChat;
-  }, [seletedChat]);
+    },
+    [seletedChat, user.token, toast]
+  );
 
+  // Fix the useEffect for socket message receiving
   useEffect(() => {
-    socket.on("message recieved", (newMessageRecieved) => {
+    const handleNewMessage = (newMessageRecieved) => {
       if (
         !seletedCompare ||
         seletedCompare._id !== newMessageRecieved.chat._id
@@ -170,32 +109,71 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
           setFetchAgain(!fetchAgain);
         }
       } else {
-        setMessages([...messages, newMessageRecieved]);
+        setMessages((prevMessages) => [...prevMessages, newMessageRecieved]);
       }
-    });
-  });
+    };
 
-  const typingHandler = (e) => {
-    setNewMessage(e.target.value);
+    socket.on("message recieved", handleNewMessage);
 
-    if (!socketConnected) return;
+    // Cleanup listener on unmount
+    return () => {
+      socket.off("message recieved", handleNewMessage);
+    };
+  }, [notification, setNotification, setFetchAgain, fetchAgain]);
 
-    if (!typing) {
-      setTyping(true);
-      socket.emit("typing", seletedChat._id);
+  // Fix the initial setup useEffect
+  useEffect(() => {
+    socket.emit("setup", user);
+
+    const handleConnected = () => setSocketConnected(true);
+    const handleTyping = () => setIsTyping(true);
+    const handleStopTyping = () => setIsTyping(false);
+
+    socket.on("connected", handleConnected);
+    socket.on("typing", handleTyping);
+    socket.on("stop typing", handleStopTyping);
+
+    return () => {
+      socket.off("connected", handleConnected);
+      socket.off("typing", handleTyping);
+      socket.off("stop typing", handleStopTyping);
+    };
+  }, [socket, user]);
+
+  // Fix the chat selection useEffect
+  useEffect(() => {
+    if (seletedChat) {
+      fetchMessage(1, false);
+      setHasMore(true);
+      setPage(1);
+      seletedCompare = { ...seletedChat };
     }
-    let lastTypingTime = new Date().getTime();
-    var timeLength = 2000;
-    setTimeout(() => {
-      var timeNow = new Date().getTime();
-      var timeDiff = timeNow - lastTypingTime;
+  }, [seletedChat, fetchMessage]);
 
-      if (timeDiff >= timeLength && typing) {
-        socket.emit("stop typing", seletedChat._id);
-        setTyping(false);
-      }
-    }, timeLength);
-  };
+  // Fix firstMessageRef callback dependencies
+  const firstMessageRef = useCallback(
+    (node) => {
+      if (loading || !hasMore) return;
+      if (observer.current) observer.current.disconnect();
+
+      observer.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+          setPage((prevPage) => {
+            const nextPage = prevPage + 1;
+            fetchMessage(nextPage, true);
+            return nextPage;
+          });
+        }
+      });
+
+      if (node) observer.current.observe(node);
+    },
+    [loading, hasMore, fetchMessage]
+  );
+
+  useEffect(() => {
+    if (observer.current) observer.current.disconnect();
+  }, [seletedChat]);
 
   return (
     <>
@@ -208,6 +186,7 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
             alignItems="center"
             justifyContent={{ base: "space-between" }}
           >
+            <VideoCall />
             <IconButton
               display={{ base: "flex", md: "none" }}
               icon={<ArrowBackIcon />}
@@ -261,11 +240,17 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
               />
             ) : (
               <div className="messages">
+                {loadingMore && (
+                  <div style={{ display: "flex", justifyContent: "center" }}>
+                    <Spinner />
+                  </div>
+                )}
                 <ScrollableChat
                   messages={messages}
                   setFetchAgain={setFetchAgain}
                   fetchAgain={fetchAgain}
                   fetchMessage={fetchMessage}
+                  firstMessageRef={firstMessageRef}
                 />
                 {isTyping ? (
                   <div
@@ -285,30 +270,14 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
                 )}
               </div>
             )}
-            <FormControl
-              onKeyDown={sendMessage}
-              display="flex"
-              mt={3}
-              isRequired
-            >
-              <Input
-                style={{ borderColor: "#333" }}
-                variant="outline"
-                focusBorderColor="black"
-                BorderColor="black"
-                placeholder="Enter a message.."
-                value={newMessage}
-                w="97%"
-                onChange={typingHandler}
-              />
-              <IconButton
-                marginLeft="3px"
-                colorScheme="blackAlpha"
-                onClick={handleSentMess}
-              >
-                <SendIcon />
-              </IconButton>
-            </FormControl>
+            <MessageInput
+              setMessages={setMessages}
+              setFetchAgain={setFetchAgain}
+              socketConnected={socketConnected}
+              seletedChat={seletedChat}
+              fetchAgain={fetchAgain}
+              messages={messages}
+            />
           </Box>
         </>
       ) : (
