@@ -46,13 +46,12 @@ import {
 } from "@chakra-ui/icons";
 import { ChatState } from "../../Context/ChatProvider";
 import ProfileModal from "./ProfileModal";
-import { useHistory } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import ChatLoading from "./ChatLoading";
 import UserListItem from "../userAvatar/UserListItem";
 import axios from "axios";
 import { getSender } from "../../config/ChatLogic";
-import NotificationBadge from "react-notification-badge";
-import { Effect } from "react-notification-badge";
+import { Badge } from "@mui/material";
 
 const SideDrawer = () => {
   const {
@@ -85,10 +84,10 @@ const SideDrawer = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
 
-  const history = useHistory();
+  const navigate = useNavigate();
   const LogoutHandle = () => {
     localStorage.removeItem("userInfo");
-    history.push("/");
+    navigate("/");
   };
 
   const handleChangeName = (value) => setName(value);
@@ -492,10 +491,15 @@ const SideDrawer = () => {
                 >
                   <BellIcon />
                 </IconButton>
-                <NotificationBadge
-                  style={{ position: "absolute", top: "-56px" }}
-                  count={notification.length}
-                  effect={Effect.SCALE}
+                <Badge
+                  style={{
+                    position: "absolute",
+                    top: "-10px",
+                    right: "5px"
+                  }}
+                  badgeContent={notification.length}
+                  color="error"
+                  max={99}
                 />
               </MenuButton>
             </Tooltip>

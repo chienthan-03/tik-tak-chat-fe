@@ -15,7 +15,7 @@ import UpdateGroupChatModal from "./UpdateGroupChatModal";
 import axios from "axios";
 import "../style.css";
 import ScrollableChat from "../ScrollableChat";
-import Lottie from "react-lottie";
+import Lottie from "lottie-react";
 import animationData from "../../animation/loadingChat.json";
 import MessageInput from "./MessageInput";
 import VideoCall from "./VideoCall";
@@ -41,15 +41,6 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
     socket,
   } = ChatState();
   const toast = useToast();
-
-  const defaultOptions = {
-    loop: true,
-    autoplay: true,
-    animationData: animationData,
-    rendererSettings: {
-      preserveAspectRatio: "xMidYMid slice",
-    },
-  };
 
   const fetchMessage = useCallback(
     async (page = 1, append = false) => {
@@ -186,7 +177,7 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
             alignItems="center"
             justifyContent={{ base: "space-between" }}
           >
-            <VideoCall />
+            {/* <VideoCall /> */}
             <IconButton
               display={{ base: "flex", md: "none" }}
               icon={<ArrowBackIcon />}
@@ -260,9 +251,10 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
                     }}
                   >
                     <Lottie
-                      options={defaultOptions}
-                      width={60}
-                      style={{ marginButton: 15, marginLeft: 0 }}
+                      animationData={animationData}
+                      loop={true}
+                      autoplay={true}
+                      style={{ width: 60, marginButton: 15, marginLeft: 0 }}
                     />
                   </div>
                 ) : (

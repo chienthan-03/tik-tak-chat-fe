@@ -11,17 +11,17 @@ import {
 import React, { useEffect } from "react";
 import Login from "../components/Authentication/login";
 import Signup from "../components/Authentication/signup";
-import { useHistory } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 const HomePage = () => {
-  const history = useHistory();
+  const navigate = useNavigate();
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("userInfo"));
 
     if (user) {
-      history.push("/chats");
+      navigate("/chats");
     }
-  }, [history]);
+  }, [navigate]);
   return (
     <Container maxW="xl" w={{ base: "150%" }} p={0} centerContents>
       <Box

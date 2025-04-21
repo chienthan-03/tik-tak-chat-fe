@@ -10,7 +10,7 @@ import {
 } from "@chakra-ui/react";
 import { useToast } from "@chakra-ui/react";
 import axios from "axios";
-import { useHistory } from "react-router";
+import { useNavigate } from "react-router-dom";
 import { ViewIcon, ViewOffIcon } from "@chakra-ui/icons";
 
 const Signup = () => {
@@ -24,7 +24,7 @@ const Signup = () => {
 
   const cloud_name = "vote";
   const toast = useToast();
-  const history = useHistory();
+  const navigate = useNavigate();
 
   const handleShow = () => setShow(!show);
 
@@ -140,7 +140,7 @@ const Signup = () => {
       });
       localStorage.setItem("userInfo", JSON.stringify(data));
       setLoading(false);
-      history.push("/chats");
+      navigate("/chats");
       window.location.reload();
     } catch (error) {
       toast({

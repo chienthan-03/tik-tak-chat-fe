@@ -1,6 +1,7 @@
-import { useHistory } from "react-router-dom";
+import { createContext, useContext, useEffect } from "react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import io from "socket.io-client";
-const { createContext, useContext, useState, useEffect } = require("react");
 
 const ChatContext = createContext();
 
@@ -9,7 +10,7 @@ const ChatProvider = ({ children }) => {
   const [chats, setChats] = useState([]);
   const [user, setUser] = useState();
   const [notification, setNotification] = useState([]);
-  const history = useHistory();
+  const navigate = useNavigate();
   const [socket, setSocket] = useState();
 
   useEffect(() => {
@@ -18,9 +19,9 @@ const ChatProvider = ({ children }) => {
       : null;
     setUser(userInfo);
     if (!userInfo) {
-      history.push("/");
+      navigate("/");
     }
-  }, [history]);
+  }, [navigate]);
 
   useEffect(() => {
     setSocket(io("http://localhost:4000/"));
@@ -48,7 +49,7 @@ const ChatProvider = ({ children }) => {
 };
 
 export const ChatState = () => {
-  return useContext(ChatContext);
+  return useContext(ChatContext); 
 };
 
 export default ChatProvider;
