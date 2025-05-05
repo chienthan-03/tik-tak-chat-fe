@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="Video call" />
+    <title>Video Call</title>
+    <style>
+      body, html {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+          Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+      }
+      #root {
+        height: 100%;
+        width: 100%;
+      }
+      .loading {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100%;
+        width: 100%;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root">
+      <div class="loading">
+        <div>
+          <h2>Loading video call...</h2>
+          <p>If the call doesn't load, please check your connection and try again.</p>
+        </div>
+      </div>
+    </div>
+    <script>
+      // This script will redirect to the video call React app route
+      window.onload = function() {
+        const params = new URLSearchParams(window.location.search);
+        // Redirect to the video call page in the React app
+        window.location.href = `/video-call${window.location.search}`;
+      };
+    </script>
+  </body>
+</html> 

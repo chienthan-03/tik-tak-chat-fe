@@ -7,7 +7,7 @@ import {
   Text,
   useToast,
 } from "@chakra-ui/react";
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { ChatState } from "../../Context/ChatProvider";
 import { ArrowBackIcon } from "@chakra-ui/icons";
 import { getSender, getSenderPic } from "../../config/ChatLogic";
@@ -18,7 +18,7 @@ import ScrollableChat from "../ScrollableChat";
 import Lottie from "lottie-react";
 import animationData from "../../animation/loadingChat.json";
 import MessageInput from "./MessageInput";
-import VideoCall from "./VideoCall";
+import VideoCallButton from "./VideoCallButton";
 
 var seletedCompare;
 const PAGESIZE = 30;
@@ -104,13 +104,50 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
       }
     };
 
+    // Listen for incoming call notifications
+    const handleIncomingCall = (data) => {
+      if (data.chatId === seletedChat?._id) {
+        // Build URL parameters for the video call page
+        const recipient = seletedChat.users.find(u => u._id === data.from);
+        if (!recipient) return;
+        
+        const params = new URLSearchParams({
+          userId: user._id,
+          username: user.name,
+          chatId: seletedChat._id,
+          remoteName: recipient.name,
+          remotePic: recipient.pic,
+          token: user.token,
+          isInitiator: "false",
+        });
+        
+        // Play notification sound and show toast before opening video call
+        const audio = new Audio("/sounds/incoming-call.mp3");
+        audio.play().catch(err => console.error("Could not play audio:", err));
+        
+        toast({
+          title: "Incoming Video Call",
+          description: `${recipient.name} is calling you`,
+          status: "info",
+          duration: 5000,
+          isClosable: true,
+          position: "top-right",
+        });
+        
+        // Open video call in a new tab
+        window.open(`/video-call.html?${params.toString()}`, "_blank");
+      }
+    };
+
     socket.on("message recieved", handleNewMessage);
+    socket.on("incomingCall", handleIncomingCall);
 
     // Cleanup listener on unmount
     return () => {
       socket.off("message recieved", handleNewMessage);
+      socket.off("incomingCall", handleIncomingCall);
     };
-  }, [notification, setNotification, setFetchAgain, fetchAgain]);
+  }, [notification, setNotification, setFetchAgain, fetchAgain, seletedChat, user._id, user.name, user.token, toast]);
 
   // Fix the initial setup useEffect
   useEffect(() => {
@@ -177,15 +214,18 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
             alignItems="center"
             justifyContent={{ base: "space-between" }}
           >
-            {/* <VideoCall /> */}
-            <IconButton
-              display={{ base: "flex", md: "none" }}
-              icon={<ArrowBackIcon />}
-              colorScheme="none"
-              color="#333"
-              fontSize="3xl"
-              onClick={() => setSelectedChat("")}
-            />
+            <Box display="flex" alignItems="center">
+              <IconButton
+                display={{ base: "flex", md: "none" }}
+                icon={<ArrowBackIcon />}
+                colorScheme="none"
+                color="#333"
+                fontSize="3xl"
+                onClick={() => setSelectedChat("")}
+                mr={2}
+              />
+              {!seletedChat.isGroupChat && <VideoCallButton />}
+            </Box>
             {!seletedChat.isGroupChat ? (
               <>
                 {getSender(user, seletedChat.users)}
