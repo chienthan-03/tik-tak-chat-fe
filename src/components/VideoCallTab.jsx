@@ -78,8 +78,8 @@ const VideoCallTab = () => {
     socketRef.current = io("http://localhost:4000");
 
     // Setup user
-    socketRef.current.emit("setup", { _id: userId });
-
+    socketRef.current.emit("setup", { _id: chatId });
+    // socketRef.current.emit("join chat", chatId);
     socketRef.current.on("connected", () => {
       setIsConnected(true);
       console.log("Socket connected");
@@ -97,7 +97,7 @@ const VideoCallTab = () => {
         peerConnection.current.close();
       }
     };
-  }, [userId]);
+  }, [chatId]);
 
   const initializePeerConnection = () => {
     console.log("initializePeerConnection");
@@ -122,6 +122,7 @@ const VideoCallTab = () => {
     // Handle incoming tracks
     pc.ontrack = (event) => {
       remoteVideoRef.current.srcObject = event.streams[0];
+      console.log("remoteVideoRef", event.streams[0]);
       setIsCallActive(true);
       setCallStatus("Call connected");
       // Stop the ringtone
@@ -250,19 +251,18 @@ const VideoCallTab = () => {
     console.log("effect", socketRef.current.on);
     // Socket event handlers
     socketRef.current.on("offer", async (data) => {
-      console.log("Received offer", data.offer);
+      console.log("Received offer", data.offer, isInitiator);
 
       // Store the offer for later use when answering
       setPendingOffer(data.offer);
 
       // If we're not the initiator (receiving the call), we'll wait for user to click Answer Call
-      if (isInitiator) {
+      if (!isInitiator) {
         if (!peerConnection.current) {
           peerConnection.current = initializePeerConnection();
 
           const stream = await setupMediaStream();
           if (!stream) return;
-
           stream
             .getTracks()
             .forEach((track) => peerConnection.current.addTrack(track, stream));
@@ -271,7 +271,8 @@ const VideoCallTab = () => {
         await peerConnection.current.setRemoteDescription(
           new RTCSessionDescription(data.offer)
         );
-
+        console.log("peerConnection.current", peerConnection.current);
+        setCallStatus("Call connected");
         const answer = await peerConnection.current.createAnswer();
         await peerConnection.current.setLocalDescription(answer);
 
@@ -290,6 +291,7 @@ const VideoCallTab = () => {
           await peerConnection.current.setRemoteDescription(
             new RTCSessionDescription(data.answer)
           );
+          console.log("peerConnection.current", peerConnection.current);
           setCallStatus("Call connected");
           console.log("Remote description set successfully from answer");
         } catch (error) {
@@ -340,7 +342,7 @@ const VideoCallTab = () => {
       socketRef.current.off("candidate");
       socketRef.current.off("callEnded");
     };
-  }, [isConnected, isInitiator, chatId, callStatus]);
+  }, [isConnected, isInitiator, chatId]);
 
   const startCall = async () => {
     try {
@@ -352,7 +354,7 @@ const VideoCallTab = () => {
 
       stream.getTracks().forEach((track) => {
         console.log("track", track, stream);
-        return peerConnection.current.addTrack(track);
+        return peerConnection.current.addTrack(track, stream);
       });
 
       const offer = await peerConnection.current.createOffer();
@@ -382,7 +384,7 @@ const VideoCallTab = () => {
     }
   };
   console.log("chatid: ", chatId);
-  
+
   const answerCall = async () => {
     try {
       console.log("Answering call");
@@ -422,21 +424,14 @@ const VideoCallTab = () => {
             new RTCSessionDescription(pendingOffer)
           );
           console.log("Remote description set successfully");
-
-          // Create an answer
-          console.log("Creating answer");
           const answer = await peerConnection.current.createAnswer();
-
-          // Set the local description (our answer)
-          console.log("Setting local description");
           await peerConnection.current.setLocalDescription(answer);
 
-          // Send the answer to the caller
-          console.log("Sending answer", socketRef.current);
           socketRef.current.emit("answer", {
             answer,
             to: chatId,
           });
+          console.log("answer", remoteVideoRef.current);
         } catch (error) {
           console.error("Error during answer process:", error);
           toast({
@@ -535,8 +530,6 @@ const VideoCallTab = () => {
       }
     }
   };
-  console.log("aaa: ", pendingOffer);
-  
   return (
     <Box bg="gray.100" height="100vh" width="100%">
       <Flex direction="column" height="100%">
