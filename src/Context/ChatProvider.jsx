@@ -10,6 +10,7 @@ const ChatProvider = ({ children }) => {
   const [chats, setChats] = useState([]);
   const [user, setUser] = useState();
   const [notification, setNotification] = useState([]);
+  const [onlineUsers, setOnlineUsers] = useState(new Set());
   const navigate = useNavigate();
   const [socket, setSocket] = useState();
 
@@ -23,10 +24,56 @@ const ChatProvider = ({ children }) => {
     }
   }, [navigate]);
 
+  // Initialize socket
   useEffect(() => {
-    setSocket(io("http://localhost:4000/"));
-    // http://localhost:4000
+    const newSocket = io("http://localhost:4000/");
+    setSocket(newSocket);
+    
+    // Set up socket event listeners
+    if (newSocket) {
+      // Listen for online users list
+      newSocket.on("online_users", (users) => {
+        setOnlineUsers(new Set(users));
+      });
+      
+      // Listen for user status updates
+      newSocket.on("user_status_update", (data) => {
+        setOnlineUsers(prevUsers => {
+          const newUsers = new Set(prevUsers);
+          if (data.status === "online") {
+            newUsers.add(data.userId);
+          } else {
+            newUsers.delete(data.userId);
+          }
+          return newUsers;
+        });
+      });
+      
+      // Clean up listeners on component unmount
+      return () => {
+        newSocket.off("online_users");
+        newSocket.off("user_status_update");
+        newSocket.disconnect();
+      };
+    }
   }, []);
+  
+  // Setup user in socket when user info is available
+  useEffect(() => {
+    if (socket && user) {
+      // Setup user in socket
+      socket.emit("setup", user);
+      
+      // Handle connection confirmation
+      socket.on("connected", () => {
+        console.log("Socket connected and user setup complete");
+      });
+      
+      return () => {
+        socket.off("connected");
+      };
+    }
+  }, [socket, user]);
 
   return (
     <ChatContext.Provider
@@ -41,6 +88,7 @@ const ChatProvider = ({ children }) => {
         setNotification,
         socket,
         setSocket,
+        onlineUsers,
       }}
     >
       {children}

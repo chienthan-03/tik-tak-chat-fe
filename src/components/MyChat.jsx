@@ -1,4 +1,4 @@
-import { Box, Button, Stack, useToast, Text, Avatar } from "@chakra-ui/react";
+import { Box, Button, Stack, useToast, Text, Avatar, Circle } from "@chakra-ui/react";
 import React, { useState, useEffect } from "react";
 import { ChatState } from "../Context/ChatProvider";
 import axios from "axios";
@@ -10,7 +10,7 @@ import GroupsIcon from "@mui/icons-material/Groups";
 
 function MyChat({ fetchAgain }) {
   const [loggedUser, setLoggedUser] = useState();
-  const { seletedChat, setSelectedChat, user, chats, setChats } = ChatState();
+  const { seletedChat, setSelectedChat, user, chats, setChats, onlineUsers } = ChatState();
 
   const toast = useToast();
   const fetchChats = async () => {
@@ -37,10 +37,23 @@ function MyChat({ fetchAgain }) {
       });
     }
   };
+  
   useEffect(() => {
     setLoggedUser(JSON.parse(localStorage.getItem("userInfo")));
     fetchChats();
   }, [fetchAgain]);
+  
+  // Helper to check if user is online
+  const isUserOnline = (chat) => {
+    if (chat.isGroupChat) return false;
+    
+    // Find the other user in the chat (not the current user)
+    const otherUser = chat.users.find(
+      (u) => u._id !== loggedUser?._id
+    );
+    
+    return otherUser && onlineUsers.has(otherUser._id);
+  };
 
   return (
     <Box
@@ -98,19 +111,33 @@ function MyChat({ fetchAgain }) {
                 py={2}
                 borderRadius={{ base: "none", sm: "lg" }}
                 key={chat._id}
+                position="relative"
               >
-                {!chat.isGroupChat ? (
-                  <Avatar
-                    size={{ base: "sm", lg: "md" }}
-                    src={getSenderPic(loggedUser, chat.users)}
-                  />
-                ) : (
-                  <Avatar
-                    size={{ base: "sm", lg: "md" }}
-                    icon={<GroupsIcon />}
-                    bgColor="gray.200"
-                  />
-                )}
+                <Box position="relative">
+                  {!chat.isGroupChat ? (
+                    <Avatar
+                      size={{ base: "sm", lg: "md" }}
+                      src={getSenderPic(loggedUser, chat.users)}
+                    />
+                  ) : (
+                    <Avatar
+                      size={{ base: "sm", lg: "md" }}
+                      icon={<GroupsIcon />}
+                      bgColor="gray.200"
+                    />
+                  )}
+                  {isUserOnline(chat) && (
+                    <Circle
+                      size="12px"
+                      bg="#31A24C"
+                      position="absolute"
+                      bottom="0"
+                      right="0"
+                      borderWidth="2px"
+                      borderColor="white"
+                    />
+                  )}
+                </Box>
                 <Box paddingLeft="10px">
                   {!chat.isGroupChat ? (
                     <Text
@@ -119,6 +146,17 @@ function MyChat({ fetchAgain }) {
                       className="last-message"
                     >
                       {getSender(loggedUser, chat.users)}
+                      {isUserOnline(chat) && (
+                        <Text
+                          as="span"
+                          fontSize="xs"
+                          color="#31A24C"
+                          ml={2}
+                          fontWeight="normal"
+                        >
+                          • Active now
+                        </Text>
+                      )}
                     </Text>
                   ) : (
                     <Text
