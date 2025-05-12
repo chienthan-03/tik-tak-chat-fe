@@ -211,10 +211,10 @@ const VideoCallTab = () => {
   };
 
   // Stop screen sharing and revert to camera
-  const stopScreenSharing = async (previousTrack) => {
+  const stopScreenSharing = async (previousVideoTrack) => {
     try {
       // If we don't have the previous track, get a new one
-      let videoTrack = previousTrack;
+      let videoTrack = previousVideoTrack;
 
       if (!videoTrack) {
         const newStream = await navigator.mediaDevices.getUserMedia({
@@ -248,38 +248,20 @@ const VideoCallTab = () => {
   // Setup WebRTC when socket is connected
   useEffect(() => {
     if (!isConnected || !socketRef.current) return;
-    console.log("effect", socketRef.current.on);
     // Socket event handlers
     socketRef.current.on("offer", async (data) => {
       console.log("Received offer", data.offer, isInitiator);
 
-      // Store the offer for later use when answering
+      // Only store the offer for later use when answering
       setPendingOffer(data.offer);
-
-      // If we're not the initiator (receiving the call), we'll wait for user to click Answer Call
-      if (!isInitiator) {
-        if (!peerConnection.current) {
-          peerConnection.current = initializePeerConnection();
-
-          const stream = await setupMediaStream();
-          if (!stream) return;
-          stream
-            .getTracks()
-            .forEach((track) => peerConnection.current.addTrack(track, stream));
-        }
-
-        await peerConnection.current.setRemoteDescription(
-          new RTCSessionDescription(data.offer)
-        );
-        console.log("peerConnection.current", peerConnection.current);
-        setCallStatus("Call connected");
-        const answer = await peerConnection.current.createAnswer();
-        await peerConnection.current.setLocalDescription(answer);
-
-        socketRef.current.emit("answer", {
-          answer,
-          to: chatId,
-        });
+      
+      // For non-initiator, just set up local stream for preview but don't answer yet
+      if (!isInitiator && !peerConnection.current) {
+        peerConnection.current = initializePeerConnection();
+        
+        // Set up local stream for camera preview only
+        const stream = await setupMediaStream();
+        if (!stream) return;
       }
     });
 
@@ -401,18 +383,27 @@ const VideoCallTab = () => {
         peerConnection.current = initializePeerConnection();
       }
 
-      // Setup media stream
-      console.log("Setting up media stream");
-      const stream = await setupMediaStream();
-      if (!stream) {
-        console.error("Failed to get media stream");
-        return;
+      // Setup media stream if not already set up
+      if (!localStream.current) {
+        console.log("Setting up media stream");
+        const stream = await setupMediaStream();
+        if (!stream) {
+          console.error("Failed to get media stream");
+          return;
+        }
       }
 
-      // Add local stream tracks to peer connection
+      // Add local stream tracks to peer connection (if not already added)
       console.log("Adding tracks to peer connection");
-      stream.getTracks().forEach((track) => {
-        peerConnection.current.addTrack(track, stream);
+      localStream.current.getTracks().forEach((track) => {
+        // Check if track is already added
+        const trackAlreadyAdded = peerConnection.current.getSenders().some(
+          (sender) => sender.track && sender.track.id === track.id
+        );
+        
+        if (!trackAlreadyAdded) {
+          peerConnection.current.addTrack(track, localStream.current);
+        }
       });
 
       // Process the stored offer if we have one
@@ -460,6 +451,9 @@ const VideoCallTab = () => {
   const endCall = () => {
     // Notify server that call has ended
     socketRef.current.emit("endCall", { to: chatId });
+    
+    // Send a reconnect signal to maintain online status
+    socketRef.current.emit("maintainOnlineStatus", { userId });
 
     // Stop all tracks
     if (localStream.current) {

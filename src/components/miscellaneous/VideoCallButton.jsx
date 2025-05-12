@@ -16,6 +16,13 @@ const VideoCallButton = () => {
     const recipient = seletedChat.users.find(u => u._id !== user._id);
     if (!recipient) return false;
     
+    // Debug log to help troubleshoot
+    console.log("Checking online status:", {
+      recipientId: recipient._id,
+      onlineUsers: Array.from(onlineUsers),
+      isOnline: onlineUsers.has(recipient._id)
+    });
+    
     // Check if the recipient is in the onlineUsers set
     return onlineUsers.has(recipient._id);
   };

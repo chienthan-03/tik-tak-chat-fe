@@ -33,11 +33,13 @@ const ChatProvider = ({ children }) => {
     if (newSocket) {
       // Listen for online users list
       newSocket.on("online_users", (users) => {
+        console.log("Received online users:", users);
         setOnlineUsers(new Set(users));
       });
       
       // Listen for user status updates
       newSocket.on("user_status_update", (data) => {
+        console.log("User status update:", data);
         setOnlineUsers(prevUsers => {
           const newUsers = new Set(prevUsers);
           if (data.status === "online") {
@@ -49,10 +51,24 @@ const ChatProvider = ({ children }) => {
         });
       });
       
+      // Handle reconnection
+      newSocket.on("reconnect", () => {
+        console.log("Socket reconnected");
+        // Re-setup the user after reconnection
+        const userInfo = localStorage.getItem("userInfo")
+          ? JSON.parse(localStorage.getItem("userInfo"))
+          : null;
+          
+        if (userInfo) {
+          newSocket.emit("setup", userInfo);
+        }
+      });
+      
       // Clean up listeners on component unmount
       return () => {
         newSocket.off("online_users");
         newSocket.off("user_status_update");
+        newSocket.off("reconnect");
         newSocket.disconnect();
       };
     }
