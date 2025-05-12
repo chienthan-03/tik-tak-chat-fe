@@ -6,6 +6,8 @@ import {
   Spinner,
   Text,
   useToast,
+  Circle,
+  Flex,
 } from "@chakra-ui/react";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { ChatState } from "../../Context/ChatProvider";
@@ -28,7 +30,7 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
-  const [page, setPage] = useState(1);
+  const [, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const observer = useRef();
 
@@ -39,8 +41,21 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
     notification,
     setNotification,
     socket,
+    onlineUsers,
   } = ChatState();
   const toast = useToast();
+
+  // Check if recipient is online
+  const isRecipientOnline = () => {
+    if (!seletedChat || seletedChat.isGroupChat) return false;
+    
+    // Get recipient user
+    const recipient = seletedChat.users.find(u => u._id !== user._id);
+    if (!recipient) return false;
+    
+    // Check if the recipient is in the onlineUsers set
+    return onlineUsers.has(recipient._id);
+  };
 
   const fetchMessage = useCallback(
     async (page = 1, append = false) => {
@@ -228,8 +243,29 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
             </Box>
             {!seletedChat.isGroupChat ? (
               <>
-                {getSender(user, seletedChat.users)}
-                <Avatar src={getSenderPic(user, seletedChat.users)} />
+                <Flex alignItems="center">
+                  <Text mr={2}>{getSender(user, seletedChat.users)}</Text>
+                  {isRecipientOnline() && (
+                    <Flex alignItems="center">
+                      <Circle size="8px" bg="#31A24C" mr={1} />
+                      <Text fontSize="xs" color="#31A24C">Active now</Text>
+                    </Flex>
+                  )}
+                </Flex>
+                <Box position="relative">
+                  <Avatar src={getSenderPic(user, seletedChat.users)} />
+                  {isRecipientOnline() && (
+                    <Circle
+                      size="10px"
+                      bg="#31A24C"
+                      position="absolute"
+                      bottom="0"
+                      right="0"
+                      borderWidth="2px"
+                      borderColor="white"
+                    />
+                  )}
+                </Box>
               </>
             ) : (
               <>
@@ -239,7 +275,7 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
                 <Box display="flex" flexDirection="row">
                   <AvatarGroup size="sm" max={2} fontSize="sm">
                     {seletedChat.users.map((user) => (
-                      <Avatar size="xs" name={user.name} src={user.pic} />
+                      <Avatar key={user._id} size="xs" name={user.name} src={user.pic} />
                     ))}
                   </AvatarGroup>
                   <UpdateGroupChatModal

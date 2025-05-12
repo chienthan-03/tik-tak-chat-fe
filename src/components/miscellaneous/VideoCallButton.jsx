@@ -1,12 +1,24 @@
 import React from "react";
-import { IconButton, useToast } from "@chakra-ui/react";
+import { IconButton, useToast, Tooltip } from "@chakra-ui/react";
 import { VideoCall as VideoCallIcon } from "@mui/icons-material";
 import { ChatState } from "../../Context/ChatProvider";
 import { getSender, getSenderPic } from "../../config/ChatLogic";
 
 const VideoCallButton = () => {
-  const { user, seletedChat, socket } = ChatState();
+  const { user, seletedChat, socket, onlineUsers } = ChatState();
   const toast = useToast();
+
+  // Check if recipient is online
+  const isRecipientOnline = () => {
+    if (!seletedChat || seletedChat.isGroupChat) return false;
+    
+    // Get recipient user
+    const recipient = seletedChat.users.find(u => u._id !== user._id);
+    if (!recipient) return false;
+    
+    // Check if the recipient is in the onlineUsers set
+    return onlineUsers.has(recipient._id);
+  };
 
   const initiateVideoCall = () => {
     if (!seletedChat) {
@@ -24,6 +36,17 @@ const VideoCallButton = () => {
       toast({
         title: "Group video calls not supported",
         description: "Video calls are only available for one-on-one chats",
+        status: "warning",
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+    
+    if (!isRecipientOnline()) {
+      toast({
+        title: "User is offline",
+        description: "You can only call users who are currently online",
         status: "warning",
         duration: 5000,
         isClosable: true,
@@ -57,16 +80,27 @@ const VideoCallButton = () => {
     window.open(`/video-call.html?${params.toString()}`, "_blank");
   };
 
+  // Determine if button should be disabled
+  const isDisabled = !isRecipientOnline() || !seletedChat || seletedChat.isGroupChat;
+
   return (
-    <IconButton
-      icon={<VideoCallIcon />}
-      colorScheme="blue"
-      size="sm"
-      isRound
-      onClick={initiateVideoCall}
-      aria-label="Video Call"
-      mr={2}
-    />
+    <Tooltip 
+      label={isDisabled ? "User is offline" : "Start video call"} 
+      placement="top" 
+      hasArrow
+    >
+      <IconButton
+        icon={<VideoCallIcon />}
+        colorScheme={isDisabled ? "gray" : "blue"}
+        size="sm"
+        isRound
+        onClick={initiateVideoCall}
+        aria-label="Video Call"
+        mr={2}
+        isDisabled={isDisabled}
+        opacity={isDisabled ? 0.6 : 1}
+      />
+    </Tooltip>
   );
 };
 
