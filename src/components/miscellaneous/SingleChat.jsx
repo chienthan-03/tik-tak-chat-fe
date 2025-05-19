@@ -180,8 +180,14 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
     socket.emit("setup", user);
 
     const handleConnected = () => setSocketConnected(true);
-    const handleTyping = () => setIsTyping(true);
-    const handleStopTyping = () => setIsTyping(false);
+    const handleTyping = () => {
+      console.log("Typing event received");
+      setIsTyping(true);
+    };
+    const handleStopTyping = () => {
+      console.log("Stop typing event received");
+      setIsTyping(false);
+    };
 
     socket.on("connected", handleConnected);
     socket.on("typing", handleTyping);
@@ -193,6 +199,14 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
       socket.off("stop typing", handleStopTyping);
     };
   }, [socket, user]);
+
+  // Add a separate effect to join the chat room for typing notifications
+  useEffect(() => {
+    if (seletedChat && socketConnected) {
+      console.log("Joining chat room for typing notifications:", seletedChat._id);
+      socket.emit("join chat", seletedChat._id);
+    }
+  }, [seletedChat, socketConnected, socket]);
 
   // Fix the chat selection useEffect to only fetch when chat changes
   useEffect(() => {
@@ -321,7 +335,7 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
                 margin="auto"
               />
             ) : (
-              <div className="messages">
+              <div className="messages" style={{ position: "relative" }}>
                 {loadingMore && (
                   <div style={{ display: "flex", justifyContent: "center" }}>
                     <Spinner />
@@ -334,22 +348,27 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
                   fetchMessage={fetchMessage}
                   firstMessageRef={firstMessageRef}
                 />
-                {isTyping ? (
+                {isTyping && (
                   <div
                     style={{
                       height: "30px",
+                      width: "30px",
                       margin: "6px 0 0 36px",
+                      position: "absolute",
+                      bottom: "0",
+                      left: "-36px"
                     }}
                   >
                     <Lottie
                       animationData={animationData}
                       loop={true}
                       autoplay={true}
-                      style={{ width: 60, marginButton: 15, marginLeft: 0 }}
+                      style={{ width: 60, marginBottom: 15, marginLeft: 0 }}
+                      rendererSettings={{
+                        preserveAspectRatio: "xMidYMid slice",
+                      }}
                     />
                   </div>
-                ) : (
-                  <></>
                 )}
               </div>
             )}

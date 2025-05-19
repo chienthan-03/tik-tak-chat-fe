@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { FormControl, Input, IconButton, useToast } from "@chakra-ui/react";
 import SendIcon from "@mui/icons-material/Send";
 import { ChatState } from "../../Context/ChatProvider";
@@ -17,11 +17,20 @@ const MessageInput = ({
   const [typing, setTyping] = useState(false);
   const lastTypingTime = useRef(0);
   const toast = useToast();
+  
+  // Reset typing state when changing chats
+  useEffect(() => {
+    if (socket && seletedChat) {
+      socket.emit("stop typing", seletedChat._id);
+      setTyping(false);
+    }
+  }, [seletedChat, socket]);
 
   const sendMessage = useCallback(async () => {
     if (!newMessage.trim()) return;
     socket.emit("stop typing", seletedChat._id);
-
+    setTyping(false);
+    
     try {
       const config = {
         headers: {
@@ -98,21 +107,33 @@ const MessageInput = ({
   const typingHandler = useCallback(
     (e) => {
       setNewMessage(e.target.value);
-      if (!socketConnected) return;
+      
+      // Don't send typing events if socket is not connected or no chat selected
+      if (!socketConnected || !seletedChat) return;
 
+      // Check if already typing
       if (!typing) {
         setTyping(true);
+        console.log("Emitting typing event to room:", seletedChat._id);
         socket.emit("typing", seletedChat._id);
       }
 
-      lastTypingTime.current = new Date().getTime();
+      // Set last typing time
+      const lastTypingTimeNow = new Date().getTime();
+      lastTypingTime.current = lastTypingTimeNow;
+      
+      // Create a timeout function to stop typing indication after 3 seconds
+      const timerLength = 3000;
       setTimeout(() => {
         const timeNow = new Date().getTime();
-        if (timeNow - lastTypingTime.current >= 2000 && typing) {
+        // Only emit stop typing if the lastTypingTime is the same as what we set earlier
+        // This means the user hasn't typed since then
+        if (timeNow - lastTypingTime.current >= timerLength && typing) {
+          console.log("Emitting stop typing event to room:", seletedChat._id);
           socket.emit("stop typing", seletedChat._id);
           setTyping(false);
         }
-      }, 2000);
+      }, timerLength);
     },
     [socketConnected, socket, seletedChat, typing]
   );
