@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Box, Text } from "@chakra-ui/layout";
 import { Button } from "@chakra-ui/button";
 import {
@@ -80,6 +80,7 @@ const SideDrawer = () => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [show, setShow] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(0);
   const handleClick = () => setShow(!show);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
@@ -297,6 +298,12 @@ const SideDrawer = () => {
     }
   };
 
+  // Add useEffect to update notification count when notification state changes
+  useEffect(() => {
+    setNotificationCount(notification.length);
+    console.log("Notification count updated:", notification.length);
+  }, [notification]);
+
   return (
     <>
       <Box
@@ -481,7 +488,7 @@ const SideDrawer = () => {
 
           <Menu>
             <Tooltip label="Notifications" hasArrow placement="right">
-              <MenuButton marginBottom={{ base: "0", sm: "20px" }}>
+              <MenuButton marginBottom={{ base: "0", sm: "20px" }} position="relative">
                 <IconButton
                   borderRadius={{ base: "0", sm: "50px" }}
                   w={{ base: "76px", sm: "40px", lg: "56px" }}
@@ -492,12 +499,15 @@ const SideDrawer = () => {
                   <BellIcon />
                 </IconButton>
                 <Badge
+                  key={`notification-badge-${notificationCount}`}
                   style={{
                     position: "absolute",
-                    top: "-10px",
-                    right: "5px"
+                    top: "10px",
+                    right: "10px",
+                    backgroundColor: notificationCount > 0 ? "#E53E3E" : "transparent",
+                    display: notificationCount > 0 ? "flex" : "none"
                   }}
-                  badgeContent={notification.length}
+                  badgeContent={notificationCount}
                   color="error"
                   max={99}
                 />

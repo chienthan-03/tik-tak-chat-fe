@@ -106,16 +106,27 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
   // Fix the useEffect for socket message receiving
   useEffect(() => {
     const handleNewMessage = (newMessageRecieved) => {
-      if (
-        !seletedCompare ||
-        seletedCompare._id !== newMessageRecieved.chat._id
-      ) {
-        if (!notification.includes(newMessageRecieved)) {
-          setNotification([newMessageRecieved, ...notification]);
-          setFetchAgain(!fetchAgain);
-        }
+      // Compare with current selected chat
+      const isSameChat = seletedChat && newMessageRecieved.chat._id === seletedChat._id;
+      
+      // If this message is not for the current chat
+      if (!isSameChat) {
+        // Use functional update pattern to ensure we're working with the latest state
+        setNotification(prevNotifications => {
+          // Check if this notification already exists
+          if (!prevNotifications.some(n => n._id === newMessageRecieved._id)) {
+            // Only update the chat list order, not fetch messages again
+            setFetchAgain((prev) => !prev);
+            return [newMessageRecieved, ...prevNotifications];
+          }
+          return prevNotifications;
+        });
       } else {
+        // The message is for the current chat, add it to our messages
+        // Only add if it's not already in the messages (could happen with optimistic UI)
+        if (!messages.some(msg => msg._id === newMessageRecieved._id)) {
         setMessages((prevMessages) => [...prevMessages, newMessageRecieved]);
+        }
       }
     };
 
@@ -162,7 +173,7 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
       socket.off("message recieved", handleNewMessage);
       socket.off("incomingCall", handleIncomingCall);
     };
-  }, [notification, setNotification, setFetchAgain, fetchAgain, seletedChat, user._id, user.name, user.token, toast]);
+  }, [notification, setNotification, setFetchAgain, seletedChat, messages, user._id, user.name, user.token, toast]);
 
   // Fix the initial setup useEffect
   useEffect(() => {
@@ -183,13 +194,17 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
     };
   }, [socket, user]);
 
-  // Fix the chat selection useEffect
+  // Fix the chat selection useEffect to only fetch when chat changes
   useEffect(() => {
     if (seletedChat) {
+      // Only fetch messages if we don't have them or if it's a different chat
+      const isSameChat = seletedCompare && seletedCompare._id === seletedChat._id;
+      if (!isSameChat) {
       fetchMessage(1, false);
       setHasMore(true);
       setPage(1);
       seletedCompare = { ...seletedChat };
+    }
     }
   }, [seletedChat, fetchMessage]);
 

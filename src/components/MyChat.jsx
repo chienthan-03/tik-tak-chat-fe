@@ -1,5 +1,5 @@
 import { Box, Button, Stack, useToast, Text, Avatar, Circle } from "@chakra-ui/react";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { ChatState } from "../Context/ChatProvider";
 import axios from "axios";
 import { AddIcon } from "@chakra-ui/icons";
@@ -55,6 +55,24 @@ function MyChat({ fetchAgain }) {
     return otherUser && onlineUsers.has(otherUser._id);
   };
 
+  // Sort chats to show most recent messages at the top
+  const sortedChats = useMemo(() => {
+    if (!chats) return [];
+    
+    return [...chats].sort((a, b) => {
+      // If a has latest message and b doesn't, a comes first
+      if (a.latestMessage && !b.latestMessage) return -1;
+      // If b has latest message and a doesn't, b comes first
+      if (!a.latestMessage && b.latestMessage) return 1;
+      // If both have latest messages, compare timestamps
+      if (a.latestMessage && b.latestMessage) {
+        return new Date(b.latestMessage.createdAt) - new Date(a.latestMessage.createdAt);
+      }
+      // If neither has latest messages, keep original order
+      return 0;
+    });
+  }, [chats]);
+
   return (
     <Box
       display={{ base: seletedChat ? "none" : "flex", md: "flex" }}
@@ -87,7 +105,7 @@ function MyChat({ fetchAgain }) {
         </GroupChatModal>
       </Box>
       <Box
-        dislay="flex"
+        display="flex"
         flexDirection="column"
         p={3}
         bgColor="rgb(247,240,235)"
@@ -96,24 +114,28 @@ function MyChat({ fetchAgain }) {
         borderRadius="lg"
         overflowY="hidden"
       >
-        {chats ? (
-          <Stack overflowY="scroll">
-            {chats.map((chat) => (
+        {sortedChats.length > 0 ? (
+          <Stack overflowY="scroll" width="100%">
+            {sortedChats.map((chat) => (
               <Box
-                onClick={() => setSelectedChat(chat)}
+                onClick={() => {
+                  if (seletedChat?._id !== chat._id) {
+                    setSelectedChat(chat);
+                  }
+                }}
                 className="chat--hover"
                 cursor="pointer"
                 display="flex"
                 alignItems="center"
-                backgroundColor={seletedChat === chat ? "#ebe4eb" : "#fff"}
-                color={seletedChat === chat ? "#333" : "#333"}
+                backgroundColor={seletedChat && seletedChat._id === chat._id ? "#ebe4eb" : "#fff"}
+                color={seletedChat && seletedChat._id === chat._id ? "#333" : "#333"}
                 px={3}
                 py={2}
                 borderRadius={{ base: "none", sm: "lg" }}
                 key={chat._id}
                 position="relative"
               >
-                <Box position="relative">
+                <Box position="relative" flexShrink={0}>
                   {!chat.isGroupChat ? (
                     <Avatar
                       size={{ base: "sm", lg: "md" }}
@@ -138,12 +160,13 @@ function MyChat({ fetchAgain }) {
                     />
                   )}
                 </Box>
-                <Box paddingLeft="10px">
+                <Box paddingLeft="10px" width="calc(100% - 50px)">
                   {!chat.isGroupChat ? (
                     <Text
                       fontSize={{ base: "lg", lg: "xl" }}
                       maxW={{ md: "90px", lg: "120px", xl: "100%" }}
                       className="last-message"
+                      isTruncated
                     >
                       {getSender(loggedUser, chat.users)}
                       {isUserOnline(chat) && (
@@ -163,6 +186,7 @@ function MyChat({ fetchAgain }) {
                       fontSize={{ base: "lg", lg: "xl" }}
                       className="last-message"
                       maxW={{ md: "120px", lg: "120px", xl: "100%" }}
+                      isTruncated
                     >
                       {chat.chatName}
                     </Text>
@@ -173,6 +197,7 @@ function MyChat({ fetchAgain }) {
                         className="last-message"
                         fontSize={{ base: "sm", lg: "md" }}
                         maxW={{ md: "90px", lg: "120px", xl: "100%" }}
+                        isTruncated
                       >
                         <>
                           {chat.latestMessage.sender._id !== user._id

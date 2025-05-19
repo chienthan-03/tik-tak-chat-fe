@@ -30,16 +30,39 @@ const MessageInput = ({
         },
       };
 
+      const content = newMessage.trim();
       setNewMessage("");
+      
+      // Add message optimistically to UI first for better UX
+      const tempMessage = {
+        sender: user,
+        content: content,
+        chat: seletedChat,
+        createdAt: new Date().toISOString(),
+        _id: new Date().getTime().toString(),
+        isOptimistic: true // Flag to mark this as a temporary message
+      };
+      
+      setMessages((prevMessages) => [...prevMessages, tempMessage]);
+      
       const { data } = await axios.post(
         "http://localhost:4000/api/message",
-        { content: newMessage, chatId: seletedChat._id },
+        { content: content, chatId: seletedChat._id },
         config
       );
 
-      setFetchAgain(!fetchAgain);
+      // Only update fetchAgain to reorder chats, but don't fetch messages again
+      setFetchAgain((prev) => !prev);
+      
+      // Emit the message to socket
       socket.emit("new message", data);
-      setMessages((prevMessages) => [...prevMessages, data]);
+      
+      // Replace the optimistic message with the real one
+      setMessages((prevMessages) => 
+        prevMessages.map(msg => 
+          msg.isOptimistic && msg._id === tempMessage._id ? data : msg
+        )
+      );
     } catch (error) {
       toast({
         title: "Error Occurred!",
@@ -49,12 +72,16 @@ const MessageInput = ({
         isClosable: true,
         position: "bottom",
       });
+      
+      // Remove the optimistic message if there was an error
+      setMessages((prevMessages) => 
+        prevMessages.filter(msg => !(msg.isOptimistic && msg._id === new Date().getTime().toString()))
+      );
     }
   }, [
     newMessage,
     seletedChat,
     user,
-    fetchAgain,
     setFetchAgain,
     socket,
     setMessages,
