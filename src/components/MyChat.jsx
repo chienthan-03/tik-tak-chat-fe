@@ -11,10 +11,11 @@ import GroupsIcon from "@mui/icons-material/Groups";
 function MyChat({ fetchAgain }) {
   const [loggedUser, setLoggedUser] = useState();
   const { seletedChat, setSelectedChat, user, chats, setChats, onlineUsers } = ChatState();
-
+  const [isLoading, setIsLoading] = useState(true);
   const toast = useToast();
   const fetchChats = async () => {
     try {
+      setIsLoading(true);
       const config = {
         headers: {
           Authorization: `Bearer ${user.token}`,
@@ -26,6 +27,7 @@ function MyChat({ fetchAgain }) {
         config
       );
       setChats(data);
+      setIsLoading(false);
     } catch (error) {
       toast({
         title: "Error Occured!",
@@ -35,6 +37,7 @@ function MyChat({ fetchAgain }) {
         isClosable: true,
         position: "bottom-left",
       });
+      setIsLoading(false);
     }
   };
   
@@ -72,7 +75,8 @@ function MyChat({ fetchAgain }) {
       return 0;
     });
   }, [chats]);
-
+  console.log("loading", isLoading);
+  
   return (
     <Box
       display={{ base: seletedChat ? "none" : "flex", md: "flex" }}
@@ -114,7 +118,7 @@ function MyChat({ fetchAgain }) {
         borderRadius="lg"
         overflowY="hidden"
       >
-        {sortedChats.length > 0 ? (
+        {!isLoading ? (
           <Stack overflowY="scroll" width="100%">
             {sortedChats.map((chat) => (
               <Box
