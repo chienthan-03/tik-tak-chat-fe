@@ -1,8 +1,17 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
-import { FormControl, Input, IconButton, useToast } from "@chakra-ui/react";
+import {
+  FormControl,
+  Input,
+  IconButton,
+  useToast,
+  Box,
+  HStack,
+} from "@chakra-ui/react";
 import SendIcon from "@mui/icons-material/Send";
 import { ChatState } from "../../Context/ChatProvider";
 import axios from "axios";
+import EmojiPicker from "./EmojiPicker";
+import ImagePicker from "./ImagePicker";
 
 const MessageInput = ({
   setMessages,
@@ -16,8 +25,9 @@ const MessageInput = ({
   const [newMessage, setNewMessage] = useState("");
   const [typing, setTyping] = useState(false);
   const lastTypingTime = useRef(0);
+  const inputRef = useRef(null);
   const toast = useToast();
-  
+
   // Reset typing state when changing chats
   useEffect(() => {
     if (socket && seletedChat) {
@@ -30,7 +40,7 @@ const MessageInput = ({
     if (!newMessage.trim()) return;
     socket.emit("stop typing", seletedChat._id);
     setTyping(false);
-    
+
     try {
       const config = {
         headers: {
@@ -41,7 +51,7 @@ const MessageInput = ({
 
       const content = newMessage.trim();
       setNewMessage("");
-      
+
       // Add message optimistically to UI first for better UX
       const tempMessage = {
         sender: user,
@@ -49,11 +59,11 @@ const MessageInput = ({
         chat: seletedChat,
         createdAt: new Date().toISOString(),
         _id: new Date().getTime().toString(),
-        isOptimistic: true // Flag to mark this as a temporary message
+        isOptimistic: true, // Flag to mark this as a temporary message
       };
-      
+
       setMessages((prevMessages) => [...prevMessages, tempMessage]);
-      
+
       const { data } = await axios.post(
         "http://localhost:4000/api/message",
         { content: content, chatId: seletedChat._id },
@@ -62,13 +72,13 @@ const MessageInput = ({
 
       // Only update fetchAgain to reorder chats, but don't fetch messages again
       setFetchAgain((prev) => !prev);
-      
+
       // Emit the message to socket
       socket.emit("new message", data);
-      
+
       // Replace the optimistic message with the real one
-      setMessages((prevMessages) => 
-        prevMessages.map(msg => 
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) =>
           msg.isOptimistic && msg._id === tempMessage._id ? data : msg
         )
       );
@@ -81,10 +91,13 @@ const MessageInput = ({
         isClosable: true,
         position: "bottom",
       });
-      
+
       // Remove the optimistic message if there was an error
-      setMessages((prevMessages) => 
-        prevMessages.filter(msg => !(msg.isOptimistic && msg._id === new Date().getTime().toString()))
+      setMessages((prevMessages) =>
+        prevMessages.filter(
+          (msg) =>
+            !(msg.isOptimistic && msg._id === new Date().getTime().toString())
+        )
       );
     }
   }, [
@@ -107,7 +120,7 @@ const MessageInput = ({
   const typingHandler = useCallback(
     (e) => {
       setNewMessage(e.target.value);
-      
+
       // Don't send typing events if socket is not connected or no chat selected
       if (!socketConnected || !seletedChat) return;
 
@@ -121,7 +134,7 @@ const MessageInput = ({
       // Set last typing time
       const lastTypingTimeNow = new Date().getTime();
       lastTypingTime.current = lastTypingTimeNow;
-      
+
       // Create a timeout function to stop typing indication after 3 seconds
       const timerLength = 3000;
       setTimeout(() => {
@@ -138,21 +151,135 @@ const MessageInput = ({
     [socketConnected, socket, seletedChat, typing]
   );
 
+  // Xử lý khi chọn emoji
+  const handleEmojiSelect = useCallback(
+    (emoji) => {
+      const input = inputRef.current;
+      if (input) {
+        const start = input.selectionStart;
+        const end = input.selectionEnd;
+        const currentValue = newMessage;
+
+        // Chèn emoji tại vị trí cursor
+        const newValue =
+          currentValue.slice(0, start) + emoji + currentValue.slice(end);
+        setNewMessage(newValue);
+
+        // Đặt lại focus và cursor position sau khi chèn emoji
+        setTimeout(() => {
+          input.focus();
+          const newCursorPosition = start + emoji.length;
+          input.setSelectionRange(newCursorPosition, newCursorPosition);
+        }, 0);
+      } else {
+        // Fallback nếu không có input ref
+        setNewMessage((prev) => prev + emoji);
+      }
+    },
+    [newMessage]
+  );
+
+  // Xử lý khi gửi ảnh
+  const handleImageSelect = useCallback(
+    async (imageFile, caption) => {
+      if (!seletedChat) return;
+
+      try {
+        const formData = new FormData();
+        formData.append("image", imageFile);
+        formData.append("chatId", seletedChat._id);
+        if (caption) {
+          formData.append("caption", caption);
+        }
+
+        const config = {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            Authorization: `Bearer ${user.token}`,
+          },
+        };
+
+        // Tạo temporary message cho UI
+        const tempMessage = {
+          sender: user,
+          content: caption || "",
+          chat: seletedChat,
+          messageType: "image",
+          imageUrl: URL.createObjectURL(imageFile), // Temporary URL for preview
+          createdAt: new Date().toISOString(),
+          _id: new Date().getTime().toString(),
+          isOptimistic: true,
+        };
+
+        setMessages((prevMessages) => [...prevMessages, tempMessage]);
+
+        const { data } = await axios.post(
+          "http://localhost:4000/api/message/image",
+          formData,
+          config
+        );
+
+        // Update fetchAgain to reorder chats
+        setFetchAgain((prev) => !prev);
+
+        // Emit the message to socket
+        socket.emit("new message", data);
+
+        // Replace the optimistic message with the real one
+        setMessages((prevMessages) =>
+          prevMessages.map((msg) =>
+            msg.isOptimistic && msg._id === tempMessage._id ? data : msg
+          )
+        );
+
+        // Cleanup temporary URL
+        URL.revokeObjectURL(tempMessage.imageUrl);
+      } catch (error) {
+        console.error("Error sending image:", error);
+
+        // Remove the optimistic message if there was an error
+        setMessages((prevMessages) =>
+          prevMessages.filter(
+            (msg) =>
+              !(msg.isOptimistic && msg._id === new Date().getTime().toString())
+          )
+        );
+
+        throw error; // Re-throw để ImagePicker có thể handle
+      }
+    },
+    [seletedChat, user, setMessages, setFetchAgain, socket]
+  );
+
   return (
     <FormControl onKeyDown={handleKeyDown} display="flex" mt={3} isRequired>
-      <Input
-        style={{ borderColor: "#333" }}
-        variant="outline"
-        focusBorderColor="black"
-        placeholder="Enter a message.."
-        value={newMessage}
-        w="97%"
-        onChange={typingHandler}
-      />
+      <Box position="relative" w="100%" display="flex" alignItems="center">
+        <Input
+          ref={inputRef}
+          style={{ borderColor: "#333" }}
+          variant="outline"
+          focusBorderColor="black"
+          placeholder="Enter a message.."
+          value={newMessage}
+          onChange={typingHandler}
+          pr="80px" // Để chừa chỗ cho emoji và image buttons
+        />
+        <HStack position="absolute" right="10px" zIndex={1} spacing={1}>
+          <ImagePicker
+            onImageSelect={handleImageSelect}
+            disabled={!seletedChat}
+          />
+          <EmojiPicker
+            onEmojiSelect={handleEmojiSelect}
+            disabled={!seletedChat}
+          />
+        </HStack>
+      </Box>
       <IconButton
-        marginLeft="3px"
+        marginLeft="8px"
         colorScheme="blackAlpha"
         onClick={sendMessage}
+        disabled={!newMessage.trim()}
       >
         <SendIcon />
       </IconButton>

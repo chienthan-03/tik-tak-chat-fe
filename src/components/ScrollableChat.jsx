@@ -21,6 +21,7 @@ import {
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import moment from "moment";
 import axios from "axios";
+import MessageContent from "./miscellaneous/MessageContent";
 
 const ScrollableChat = ({
   messages,
@@ -121,24 +122,19 @@ const ScrollableChat = ({
             )}
 
             {/* Nội dung tin nhắn */}
-            <Text
+            <Box
               style={{
                 backgroundColor: m.isRemove ? "transparent" : "#fff",
                 boxShadow: " #33333311 0px 0px 8px 2px",
                 borderRadius: "20px",
-                padding: "10px 15px",
-                minWidth: "120px",
+                padding: m.messageType === "image" ? "8px" : "10px 15px",
+                minWidth: m.messageType === "image" ? "auto" : "120px",
                 marginTop: isSameUser(messages, m, i, user) ? 6 : 10,
                 border: m.isRemove ? "1px solid #33333348" : "none",
                 color: m.isRemove ? "#33333348" : "#000",
               }}
             >
-              <Text
-                fontSize={{ base: "1rem", sm: "1.2rem" }}
-                as={m.isRemove ? "i" : "p"}
-              >
-                {m.content}
-              </Text>
+              <MessageContent message={m} isRemoved={m.isRemove} />
               <span
                 style={{
                   width: "100%",
@@ -148,11 +144,12 @@ const ScrollableChat = ({
                     m.sender._id === user._id ? "flex-end" : "flex-start",
                   fontSize: ".7rem",
                   color: "#33333348",
+                  marginTop: m.messageType === "image" ? "8px" : "0",
                 }}
               >
                 {m.sender.name} &emsp; {m.createAt}
               </span>
-            </Text>
+            </Box>
           </Box>
         </div>
       ))}
