@@ -13,6 +13,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { ChatState } from "../../Context/ChatProvider";
 import { ArrowBackIcon } from "@chakra-ui/icons";
 import { getSender, getSenderPic } from "../../config/ChatLogic";
+import { Input, Button } from "@chakra-ui/react";
 import UpdateGroupChatModal from "./UpdateGroupChatModal";
 import axios from "axios";
 import "../style.css";
@@ -22,7 +23,7 @@ import animationData from "../../animation/loadingChat.json";
 import MessageInput from "./MessageInput";
 import VideoCallButton from "./VideoCallButton";
 
-var seletedCompare;
+let seletedCompare;
 const PAGESIZE = 30;
 function SingleChat({ fetchAgain, setFetchAgain }) {
   const [messages, setMessages] = useState([]);
@@ -32,8 +33,11 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
   const [isTyping, setIsTyping] = useState(false);
   const [, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
   const observer = useRef();
-
+  const messagesContainerRef = useRef(null);
   const {
     user,
     seletedChat,
@@ -80,15 +84,29 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
         if (data.messages.length === 0) {
           setHasMore(false);
         }
-
-        setMessages((prev) =>
-          append ? [...data.messages, ...prev] : data.messages
-        );
+        setMessages((prev) => {
+          const newMessages = append ? [...data.messages, ...prev] : data.messages;
+          // Maintain scroll position when loading older messages
+          if (append && messagesContainerRef.current) {
+            const container = messagesContainerRef.current;
+            const scrollHeightBefore = container.scrollHeight;
+            // Use double requestAnimationFrame for more reliable scroll position
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                const scrollOffset = container.scrollHeight - scrollHeightBefore;
+                container.scrollTop = scrollOffset;
+              });
+            });
+          }
+          return newMessages;
+        });
         if (page === 1) {
           setLoading(false);
         } else {
           setLoadingMore(false);
         }
+        setIsSearching(false);
+        console.log(messages)
       } catch (error) {
         toast({
           title: "Error Occurred!!",
@@ -130,48 +148,11 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
       }
     };
 
-    // Listen for incoming call notifications
-    const handleIncomingCall = (data) => {
-      if (data.chatId === seletedChat?._id) {
-        // Build URL parameters for the video call page
-        const recipient = seletedChat.users.find(u => u._id === data.from);
-        if (!recipient) return;
-        
-        const params = new URLSearchParams({
-          userId: user._id,
-          username: user.name,
-          chatId: seletedChat._id,
-          remoteName: recipient.name,
-          remotePic: recipient.pic,
-          token: user.token,
-          isInitiator: "false",
-        });
-        
-        // Play notification sound and show toast before opening video call
-        const audio = new Audio("/sounds/incoming-call.mp3");
-        audio.play().catch(err => console.error("Could not play audio:", err));
-        
-        toast({
-          title: "Incoming Video Call",
-          description: `${recipient.name} is calling you`,
-          status: "info",
-          duration: 5000,
-          isClosable: true,
-          position: "top-right",
-        });
-        
-        // Open video call in a new tab
-        window.open(`/video-call.html?${params.toString()}`, "_blank");
-      }
-    };
-
     socket.on("message recieved", handleNewMessage);
-    socket.on("incomingCall", handleIncomingCall);
 
     // Cleanup listener on unmount
     return () => {
       socket.off("message recieved", handleNewMessage);
-      socket.off("incomingCall", handleIncomingCall);
     };
   }, [notification, setNotification, setFetchAgain, seletedChat, messages, user._id, user.name, user.token, toast]);
 
@@ -223,6 +204,36 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
   }, [seletedChat, fetchMessage]);
 
   // Fix firstMessageRef callback dependencies
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+    
+    try {
+      setIsSearching(true);
+      const config = {
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+        },
+      };
+
+      const { data } = await axios.get(
+        `http://localhost:4000/api/message/search/${seletedChat._id}?query=${searchQuery}`,
+        config
+      );
+
+      setSearchResults(data);
+    } catch (error) {
+      toast({
+        title: "Error Occurred!",
+        description: "Failed to search messages",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+        position: "bottom",
+      });
+      setIsSearching(false);
+    }
+  };
+
   const firstMessageRef = useCallback(
     (node) => {
       if (loading || !hasMore) return;
@@ -269,6 +280,18 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
                 mr={2}
               />
               {!seletedChat.isGroupChat && <VideoCallButton />}
+            </Box>
+            <Box flex="1" px={2}>
+              <Input
+                placeholder="Search messages..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === "Enter" && searchQuery.trim()) {
+                    handleSearch();
+                  }
+                }}
+              />
             </Box>
             {!seletedChat.isGroupChat ? (
               <>
@@ -325,6 +348,13 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
             h="100%"
             borderRadius="lg"
             overflowY="scroll"
+            ref={messagesContainerRef}
+            onScroll={(e) => {
+              const container = e.target;
+              if (container.scrollTop === 0 && hasMore && !loadingMore) {
+                setPage(prev => prev + 1);
+              }
+            }}
           >
             {loading ? (
               <Spinner
@@ -341,13 +371,38 @@ function SingleChat({ fetchAgain, setFetchAgain }) {
                     <Spinner />
                   </div>
                 )}
-                <ScrollableChat
-                  messages={messages}
-                  setFetchAgain={setFetchAgain}
-                  fetchAgain={fetchAgain}
-                  fetchMessage={fetchMessage}
-                  firstMessageRef={firstMessageRef}
-                />
+                {isSearching ? (
+                  <Box p={3}>
+                    <Text fontSize="sm" color="gray.500" mb={2}>
+                      Search results for "{searchQuery}"
+                    </Text>
+                    <ScrollableChat
+                      messages={searchResults}
+                      setFetchAgain={setFetchAgain}
+                      fetchAgain={fetchAgain}
+                      fetchMessage={fetchMessage}
+                    />
+                    <Button
+                      size="sm"
+                      mt={2}
+                      onClick={() => {
+                        setSearchResults([]);
+                        setIsSearching(false);
+                        setSearchQuery("");
+                      }}
+                    >
+                      Back to chat
+                    </Button>
+                  </Box>
+                ) : (
+                  <ScrollableChat
+                    messages={messages}
+                    setFetchAgain={setFetchAgain}
+                    fetchAgain={fetchAgain}
+                    fetchMessage={fetchMessage}
+                    firstMessageRef={firstMessageRef}
+                  />
+                )}
                 {isTyping && (
                   <div
                     style={{

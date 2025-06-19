@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { IconButton, useToast, Tooltip } from "@chakra-ui/react";
 import { VideoCall as VideoCallIcon } from "@mui/icons-material";
 import { ChatState } from "../../Context/ChatProvider";
@@ -7,6 +7,29 @@ import { getSender, getSenderPic } from "../../config/ChatLogic";
 const VideoCallButton = () => {
   const { user, seletedChat, socket, onlineUsers } = ChatState();
   const toast = useToast();
+
+  // Listen for call rejection
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleCallRejected = (data) => {
+      if (data.chatId === seletedChat?._id) {
+        toast({
+          title: "Call Declined",
+          description: "The user declined your call",
+          status: "warning",
+          duration: 5000,
+          isClosable: true,
+        });
+      }
+    };
+
+    socket.on("callRejected", handleCallRejected);
+
+    return () => {
+      socket.off("callRejected", handleCallRejected);
+    };
+  }, [socket, seletedChat, toast]);
 
   // Check if recipient is online
   const isRecipientOnline = () => {

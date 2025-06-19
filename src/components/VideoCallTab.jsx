@@ -33,6 +33,9 @@ const VideoCallTab = () => {
   const remotePic = params.get("remotePic");
   const token = params.get("token");
   const isInitiator = params.get("isInitiator") === "true";
+  
+  // No longer using URL offer - will receive via socket
+  const initialOffer = null;
 
   // Refs
   const localVideoRef = useRef(null);
@@ -50,8 +53,7 @@ const VideoCallTab = () => {
   const [callStatus, setCallStatus] = useState(
     isInitiator ? "Calling..." : "Incoming call..."
   );
-  // Store the offer SDP for later use when answering a call
-  const [pendingOffer, setPendingOffer] = useState(null);
+  const [pendingOffer, setPendingOffer] = useState(initialOffer);
 
   const toast = useToast();
 
@@ -75,14 +77,22 @@ const VideoCallTab = () => {
 
   // Initialize socket connection
   useEffect(() => {
+    console.log("=== INITIALIZING SOCKET ===");
+    console.log("URL params:", { userId, username, chatId, remoteName, isInitiator });
+    
     socketRef.current = io("http://localhost:4000");
 
-    // Setup user
-    socketRef.current.emit("setup", { _id: chatId });
-    // socketRef.current.emit("join chat", chatId);
+    // Setup user with their userId, not chatId
+    console.log("Emitting setup for userId:", userId);
+    socketRef.current.emit("setup", { _id: userId });
+    
+    // Also join the chat room for signaling
+    console.log("Joining chat room:", chatId);
+    socketRef.current.emit("join chat", chatId);
+    
     socketRef.current.on("connected", () => {
       setIsConnected(true);
-      console.log("Socket connected");
+      console.log("Socket connected for user:", userId, "in chat:", chatId);
     });
 
     // Cleanup on unmount
@@ -97,7 +107,7 @@ const VideoCallTab = () => {
         peerConnection.current.close();
       }
     };
-  }, [chatId]);
+  }, [userId, chatId]);
 
   const initializePeerConnection = () => {
     console.log("initializePeerConnection");
@@ -115,6 +125,7 @@ const VideoCallTab = () => {
         socketRef.current.emit("candidate", {
           candidate: event.candidate,
           to: chatId,
+          from: userId,
         });
       }
     };
@@ -245,35 +256,80 @@ const VideoCallTab = () => {
     }
   };
 
-  // Setup WebRTC when socket is connected
+  // Setup WebRTC event handlers once when socket is ready
   useEffect(() => {
-    if (!isConnected || !socketRef.current) return;
+    if (!socketRef.current) return;
+    
+    console.log("Setting up WebRTC event handlers. IsInitiator:", isInitiator);
+    console.log("Setting up offer listener for chatId:", chatId, "userId:", userId);
+    
     // Socket event handlers
-    socketRef.current.on("offer", async (data) => {
-      console.log("Received offer", data.offer, isInitiator);
+    const handleOffer = async (data) => {
+      console.log("🚀 handleOffer called with data:", data);
+      console.log("🚀 Current userId:", userId, "isInitiator:", isInitiator);
+      console.log("🚀 Data.to (chatId):", data.to, "Current chatId:", chatId);
+      console.log("🚀 Data.from:", data.from);
+      
+      // Don't process our own offer
+      if (data.from === userId) {
+        console.log("❌ Ignoring own offer");
+        return;
+      }
 
-      // Only store the offer for later use when answering
+      // Only non-initiators should process offers
+      if (isInitiator) {
+        console.log("❌ Initiator ignoring offer");
+        return;
+      }
+
+      // Check if this offer is for our chat
+      if (data.to !== chatId) {
+        console.log("❌ Offer not for our chat. Offer for:", data.to, "Our chat:", chatId);
+        return;
+      }
+
+      console.log("✅ Processing offer for non-initiator");
+      console.log("✅ Setting pendingOffer:", data.offer);
       setPendingOffer(data.offer);
       
-      // For non-initiator, just set up local stream for preview but don't answer yet
-      if (!isInitiator && !peerConnection.current) {
+      // Set up peer connection and local stream for preview if not already done
+      if (!peerConnection.current) {
+        console.log("✅ Creating peer connection for offer (peer connection not exists)");
         peerConnection.current = initializePeerConnection();
         
-        // Set up local stream for camera preview only
+        // Set up local stream for camera preview
         const stream = await setupMediaStream();
-        if (!stream) return;
+        if (!stream) {
+          console.error("❌ Failed to setup media stream for offer");
+          return;
+        }
+        console.log("✅ Media stream setup complete for offer");
+      } else {
+        console.log("✅ Peer connection already exists, just setting pendingOffer");
       }
-    });
+    };
 
-    socketRef.current.on("answer", async (data) => {
-      console.log("Received answer", data.answer);
+    const handleAnswer = async (data) => {
+      console.log("Received answer from:", data.from, "isInitiator:", isInitiator);
+      
+      // Don't process our own answer
+      if (data.from === userId) {
+        console.log("Ignoring own answer");
+        return;
+      }
+
+      // Only initiators should process answers
+      if (!isInitiator) {
+        console.log("Non-initiator ignoring answer");
+        return;
+      }
 
       if (peerConnection.current) {
         try {
+          console.log("Processing answer for initiator");
           await peerConnection.current.setRemoteDescription(
             new RTCSessionDescription(data.answer)
           );
-          console.log("peerConnection.current", peerConnection.current);
           setCallStatus("Call connected");
           console.log("Remote description set successfully from answer");
         } catch (error) {
@@ -282,10 +338,16 @@ const VideoCallTab = () => {
       } else {
         console.error("Cannot process answer - no peer connection");
       }
-    });
+    };
 
-    socketRef.current.on("candidate", async (data) => {
-      console.log("Received ICE candidate", data.candidate);
+    const handleCandidate = async (data) => {
+      console.log("Received ICE candidate from:", data.from);
+      
+      // Don't process our own candidates
+      if (data.from === userId) {
+        console.log("Ignoring own ICE candidate");
+        return;
+      }
 
       try {
         if (peerConnection.current) {
@@ -299,9 +361,9 @@ const VideoCallTab = () => {
       } catch (error) {
         console.error("Error adding ICE candidate:", error);
       }
-    });
+    };
 
-    socketRef.current.on("callEnded", () => {
+    const handleCallEnded = () => {
       endCall();
       toast({
         title: "Call Ended",
@@ -311,51 +373,159 @@ const VideoCallTab = () => {
         isClosable: true,
       });
       window.close();
+    };
+
+    const handleReceiverReady = (data) => {
+      console.log("📞 Receiver ready notification received:", data);
+      if (isInitiator && data.chatId === chatId) {
+        console.log("📞 Receiver is ready, starting call now...");
+        
+        // Clear fallback timer since receiver is ready
+        if (window.fallbackTimer) {
+          clearTimeout(window.fallbackTimer);
+          window.fallbackTimer = null;
+        }
+        
+        startCall();
+      }
+    };
+
+    const handleUserJoinedRoom = (data) => {
+      console.log("👥 User joined room:", data);
+    };
+
+    const handleRoomMembers = (data) => {
+      console.log("👥 Room members:", data);
+    };
+
+    console.log("📡 Setting up socket event listeners...");
+    socketRef.current.on("offer", handleOffer);
+    socketRef.current.on("answer", handleAnswer);
+    socketRef.current.on("candidate", handleCandidate);
+    socketRef.current.on("callEnded", handleCallEnded);
+    socketRef.current.on("receiver_ready_notification", handleReceiverReady);
+    socketRef.current.on("user_joined_room", handleUserJoinedRoom);
+    socketRef.current.on("room_members", handleRoomMembers);
+    
+    // Debug: Listen to all socket events
+    socketRef.current.onAny((event, ...args) => {
+      console.log("🔥 VideoCallTab received socket event:", event, args);
     });
 
-    // If initiator, start the call
-    if (isInitiator) {
-      startCall();
-    }
+    console.log("📡 Socket event listeners set up complete");
 
     return () => {
-      socketRef.current.off("offer");
-      socketRef.current.off("answer");
-      socketRef.current.off("candidate");
-      socketRef.current.off("callEnded");
+      if (socketRef.current) {
+        console.log("📡 Cleaning up socket event listeners...");
+        socketRef.current.off("offer", handleOffer);
+        socketRef.current.off("answer", handleAnswer);
+        socketRef.current.off("candidate", handleCandidate);
+        socketRef.current.off("callEnded", handleCallEnded);
+        socketRef.current.off("receiver_ready_notification", handleReceiverReady);
+        socketRef.current.off("user_joined_room", handleUserJoinedRoom);
+        socketRef.current.off("room_members", handleRoomMembers);
+        socketRef.current.offAny();
+      }
     };
-  }, [isConnected, isInitiator, chatId]);
+  }, [userId, isInitiator]);
+
+  // Start call when connected (separate effect)
+  useEffect(() => {
+    if (isConnected && isInitiator) {
+      console.log("Initiator connected, waiting for receiver to be ready...");
+      
+      // Set a fallback timer in case receiver is already ready but we missed the notification
+      const fallbackTimer = setTimeout(() => {
+        console.log("⏰ Fallback: Starting call after 3 seconds timeout");
+        startCall();
+      }, 3000);
+      
+      // Store timer to clear it if receiver_ready is received
+      window.fallbackTimer = fallbackTimer;
+    }
+  }, [isConnected, isInitiator]);
+
+  // Setup peer connection for non-initiator when connected
+  useEffect(() => {
+    if (isConnected && !isInitiator && !peerConnection.current) {
+      console.log("Setting up peer connection for non-initiator");
+      setupPeerConnectionForReceiver();
+    }
+  }, [isConnected, isInitiator]);
+
+  const setupPeerConnectionForReceiver = async () => {
+    try {
+      console.log("Setting up peer connection for receiver");
+      peerConnection.current = initializePeerConnection();
+      
+      // Set up local stream for camera preview
+      const stream = await setupMediaStream();
+      if (!stream) {
+        console.error("Failed to setup media stream for receiver");
+        return;
+      }
+      console.log("✅ Media stream setup complete for receiver");
+      
+      // Notify that receiver is ready
+      console.log("📞 Notifying that receiver is ready");
+      socketRef.current.emit("receiver_ready", {
+        chatId: chatId,
+        userId: userId
+      });
+      
+    } catch (error) {
+      console.error("Error setting up peer connection for receiver:", error);
+    }
+  };
 
   const startCall = async () => {
     try {
-      console.log("startCall", peerConnection.current);
+      console.log("=== STARTING CALL ===");
+      console.log("isInitiator:", isInitiator);
+      console.log("userId:", userId);
+      console.log("chatId:", chatId);
+      console.log("Socket connected:", socketRef.current?.connected);
+      console.log("Socket ID:", socketRef.current?.id);
+      
       peerConnection.current = initializePeerConnection();
 
       const stream = await setupMediaStream();
-      if (!stream) return;
+      if (!stream) {
+        console.error("Failed to get media stream in startCall");
+        return;
+      }
 
       stream.getTracks().forEach((track) => {
-        console.log("track", track, stream);
+        console.log("Adding track to peer connection:", track.kind);
         return peerConnection.current.addTrack(track, stream);
       });
 
+      console.log("Creating offer...");
       const offer = await peerConnection.current.createOffer();
       await peerConnection.current.setLocalDescription(offer);
+      console.log("✅ Offer created successfully:", offer);
 
-      socketRef.current.emit("offer", {
+      // Send offer to the chat room
+      const offerData = {
         offer,
         to: chatId,
-      });
-      console.log("peerConnection.current", {
-        getSenders: peerConnection.current.getSenders(),
-        stream,
-        getReceivers: peerConnection.current.getReceivers(),
-        peerConnection: peerConnection.current,
-      });
+        from: userId,
+      };
+      console.log("📤 Sending offer data:", offerData);
+      console.log("📤 Emitting to socket with ID:", socketRef.current?.id);
+      
+      socketRef.current.emit("offer", offerData);
+      
+      console.log("✅ Offer emitted to chat room:", chatId, "from user:", userId);
+      
+      // Add a small delay and check if the offer was received by checking backend logs
+      setTimeout(() => {
+        console.log("⏰ 2 seconds after offer emission - check if receiver got it");
+      }, 2000);
 
       setCallStatus("Calling...");
     } catch (error) {
-      console.error("Error starting call:", error);
+      console.error("❌ Error starting call:", error);
       toast({
         title: "Call Error",
         description: "Failed to start call",
@@ -365,11 +535,14 @@ const VideoCallTab = () => {
       });
     }
   };
-  console.log("chatid: ", chatId);
 
   const answerCall = async () => {
     try {
-      console.log("Answering call");
+      console.log("=== ANSWERING CALL ===");
+      console.log("pendingOffer:", pendingOffer);
+      console.log("initialOffer:", initialOffer);
+      console.log("isInitiator:", isInitiator);
+      console.log("peerConnection.current:", peerConnection.current);
 
       // Stop the ringtone
       audioRef.current.pause();
@@ -379,13 +552,13 @@ const VideoCallTab = () => {
 
       // Create peer connection if it doesn't exist
       if (!peerConnection.current) {
-        console.log("Creating new peer connection");
+        console.log("Creating new peer connection in answerCall");
         peerConnection.current = initializePeerConnection();
       }
 
       // Setup media stream if not already set up
       if (!localStream.current) {
-        console.log("Setting up media stream");
+        console.log("Setting up media stream in answerCall");
         const stream = await setupMediaStream();
         if (!stream) {
           console.error("Failed to get media stream");
@@ -393,36 +566,39 @@ const VideoCallTab = () => {
         }
       }
 
-      // Add local stream tracks to peer connection (if not already added)
+      // Add local stream tracks to peer connection
       console.log("Adding tracks to peer connection");
       localStream.current.getTracks().forEach((track) => {
-        // Check if track is already added
         const trackAlreadyAdded = peerConnection.current.getSenders().some(
           (sender) => sender.track && sender.track.id === track.id
         );
         
         if (!trackAlreadyAdded) {
+          console.log("Adding track:", track.kind);
           peerConnection.current.addTrack(track, localStream.current);
         }
       });
 
       // Process the stored offer if we have one
       if (pendingOffer) {
-        console.log("Processing pending offer");
+        console.log("Processing pending offer:", pendingOffer);
         try {
           // Set the remote description (the offer)
           await peerConnection.current.setRemoteDescription(
             new RTCSessionDescription(pendingOffer)
           );
           console.log("Remote description set successfully");
+          
           const answer = await peerConnection.current.createAnswer();
           await peerConnection.current.setLocalDescription(answer);
+          console.log("Answer created and set as local description");
 
           socketRef.current.emit("answer", {
             answer,
             to: chatId,
+            from: userId,
           });
-          console.log("answer", remoteVideoRef.current);
+          console.log("Answer sent to chat room:", chatId);
         } catch (error) {
           console.error("Error during answer process:", error);
           toast({
@@ -434,7 +610,14 @@ const VideoCallTab = () => {
           });
         }
       } else {
-        console.error("No pending offer to answer");
+        console.error("No pending offer to answer!");
+        toast({
+          title: "Call Error",
+          description: "No incoming call to answer",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
       }
     } catch (error) {
       console.error("Error answering call:", error);
@@ -524,6 +707,7 @@ const VideoCallTab = () => {
       }
     }
   };
+
   return (
     <Box bg="gray.100" height="100vh" width="100%">
       <Flex direction="column" height="100%">
@@ -606,14 +790,65 @@ const VideoCallTab = () => {
                 </Heading>
 
                 {!isInitiator && !isCallActive && (
-                  <Button
-                    colorScheme="green"
-                    size="lg"
-                    onClick={answerCall}
-                    leftIcon={<Videocam />}
-                  >
-                    Answer Call
-                  </Button>
+                  <VStack spacing={4}>
+                    <Button
+                      colorScheme="green"
+                      size="lg"
+                      onClick={answerCall}
+                      leftIcon={<Videocam />}
+                    >
+                      Answer Call
+                    </Button>
+                    
+                    {/* Debug buttons */}
+                    <Button
+                      colorScheme="blue"
+                      size="sm"
+                      onClick={() => {
+                        console.log("=== DEBUG STATE ===");
+                        console.log("pendingOffer:", pendingOffer);
+                        console.log("initialOffer:", initialOffer);
+                        console.log("isInitiator:", isInitiator);
+                        console.log("isConnected:", isConnected);
+                        console.log("peerConnection.current:", peerConnection.current);
+                        console.log("URL params:", { userId, chatId, remoteName, isInitiator });
+                        console.log("Socket connected:", socketRef.current?.connected);
+                        console.log("Socket ID:", socketRef.current?.id);
+                      }}
+                    >
+                      Debug State
+                    </Button>
+                    
+                    <Button
+                      colorScheme="orange"
+                      size="sm"
+                      onClick={() => {
+                        console.log("=== MANUAL TEST OFFER ===");
+                        const testOffer = {
+                          type: "offer",
+                          sdp: "test-sdp-data"
+                        };
+                        console.log("Manually setting pendingOffer:", testOffer);
+                        setPendingOffer(testOffer);
+                      }}
+                    >
+                      Test Set Offer
+                    </Button>
+                    
+                    <Button
+                      colorScheme="purple"
+                      size="sm"
+                      onClick={() => {
+                        console.log("=== CHECK SOCKET ROOMS ===");
+                        console.log("Socket ID:", socketRef.current?.id);
+                        console.log("Socket connected:", socketRef.current?.connected);
+                        console.log("Re-joining chat room:", chatId);
+                        socketRef.current?.emit("join chat", chatId);
+                      }}
+                    >
+                      Rejoin Room
+                    </Button>
+                  </VStack>
                 )}
               </VStack>
             </Center>

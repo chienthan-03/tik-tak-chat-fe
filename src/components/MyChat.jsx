@@ -1,9 +1,8 @@
 import { Box, Button, Stack, useToast, Text, Avatar, Circle } from "@chakra-ui/react";
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { ChatState } from "../Context/ChatProvider";
 import axios from "axios";
 import { AddIcon } from "@chakra-ui/icons";
-import ChatLoading from "./miscellaneous/ChatLoading";
 import { getSender, getSenderPic } from "../config/ChatLogic";
 import GroupChatModal from "./miscellaneous/GroupChatModal";
 import GroupsIcon from "@mui/icons-material/Groups";
@@ -11,11 +10,9 @@ import GroupsIcon from "@mui/icons-material/Groups";
 function MyChat({ fetchAgain }) {
   const [loggedUser, setLoggedUser] = useState();
   const { seletedChat, setSelectedChat, user, chats, setChats, onlineUsers } = ChatState();
-  const [isLoading, setIsLoading] = useState(true);
   const toast = useToast();
   const fetchChats = async () => {
     try {
-      setIsLoading(true);
       const config = {
         headers: {
           Authorization: `Bearer ${user.token}`,
@@ -27,7 +24,6 @@ function MyChat({ fetchAgain }) {
         config
       );
       setChats(data);
-      setIsLoading(false);
     } catch (error) {
       toast({
         title: "Error Occured!",
@@ -75,7 +71,6 @@ function MyChat({ fetchAgain }) {
       return 0;
     });
   }, [chats]);
-  console.log("loading", isLoading);
   
   return (
     <Box
@@ -118,110 +113,106 @@ function MyChat({ fetchAgain }) {
         borderRadius="lg"
         overflowY="hidden"
       >
-        {!isLoading ? (
-          <Stack overflowY="scroll" width="100%">
-            {sortedChats.map((chat) => (
-              <Box
-                onClick={() => {
-                  if (seletedChat?._id !== chat._id) {
-                    setSelectedChat(chat);
-                  }
-                }}
-                className="chat--hover"
-                cursor="pointer"
-                display="flex"
-                alignItems="center"
-                backgroundColor={seletedChat && seletedChat._id === chat._id ? "#ebe4eb" : "#fff"}
-                color={seletedChat && seletedChat._id === chat._id ? "#333" : "#333"}
-                px={3}
-                py={2}
-                borderRadius={{ base: "none", sm: "lg" }}
-                key={chat._id}
-                position="relative"
-              >
-                <Box position="relative" flexShrink={0}>
-                  {!chat.isGroupChat ? (
-                    <Avatar
-                      size={{ base: "sm", lg: "md" }}
-                      src={getSenderPic(loggedUser, chat.users)}
-                    />
-                  ) : (
-                    <Avatar
-                      size={{ base: "sm", lg: "md" }}
-                      icon={<GroupsIcon />}
-                      bgColor="gray.200"
-                    />
-                  )}
-                  {isUserOnline(chat) && (
-                    <Circle
-                      size="12px"
-                      bg="#31A24C"
-                      position="absolute"
-                      bottom="0"
-                      right="0"
-                      borderWidth="2px"
-                      borderColor="white"
-                    />
-                  )}
-                </Box>
-                <Box paddingLeft="10px" width="calc(100% - 50px)">
-                  {!chat.isGroupChat ? (
-                    <Text
-                      fontSize={{ base: "lg", lg: "xl" }}
-                      maxW={{ md: "90px", lg: "120px", xl: "100%" }}
-                      className="last-message"
-                      isTruncated
-                    >
-                      {getSender(loggedUser, chat.users)}
-                      {isUserOnline(chat) && (
-                        <Text
-                          as="span"
-                          fontSize="xs"
-                          color="#31A24C"
-                          ml={2}
-                          fontWeight="normal"
-                        >
-                          • Active now
-                        </Text>
-                      )}
-                    </Text>
-                  ) : (
-                    <Text
-                      fontSize={{ base: "lg", lg: "xl" }}
-                      className="last-message"
-                      maxW={{ md: "120px", lg: "120px", xl: "100%" }}
-                      isTruncated
-                    >
-                      {chat.chatName}
-                    </Text>
-                  )}
-                  <Text color="#6e6e6e" fontSize="medium">
-                    {chat.latestMessage && (
+        <Stack overflowY="scroll" width="100%">
+          {sortedChats.map((chat) => (
+            <Box
+              onClick={() => {
+                if (seletedChat?._id !== chat._id) {
+                  setSelectedChat(chat);
+                }
+              }}
+              className="chat--hover"
+              cursor="pointer"
+              display="flex"
+              alignItems="center"
+              backgroundColor={seletedChat && seletedChat._id === chat._id ? "#ebe4eb" : "#fff"}
+              color={seletedChat && seletedChat._id === chat._id ? "#333" : "#333"}
+              px={3}
+              py={2}
+              borderRadius={{ base: "none", sm: "lg" }}
+              key={chat._id}
+              position="relative"
+            >
+              <Box position="relative" flexShrink={0}>
+                {!chat.isGroupChat ? (
+                  <Avatar
+                    size={{ base: "sm", lg: "md" }}
+                    src={getSenderPic(loggedUser, chat.users)}
+                  />
+                ) : (
+                  <Avatar
+                    size={{ base: "sm", lg: "md" }}
+                    icon={<GroupsIcon />}
+                    bgColor="gray.200"
+                  />
+                )}
+                {isUserOnline(chat) && (
+                  <Circle
+                    size="12px"
+                    bg="#31A24C"
+                    position="absolute"
+                    bottom="0"
+                    right="0"
+                    borderWidth="2px"
+                    borderColor="white"
+                  />
+                )}
+              </Box>
+              <Box paddingLeft="10px" width="calc(100% - 50px)">
+                {!chat.isGroupChat ? (
+                  <Text
+                    fontSize={{ base: "lg", lg: "xl" }}
+                    maxW={{ md: "90px", lg: "120px", xl: "100%" }}
+                    className="last-message"
+                    isTruncated
+                  >
+                    {getSender(loggedUser, chat.users)}
+                    {isUserOnline(chat) && (
                       <Text
-                        className="last-message"
-                        fontSize={{ base: "sm", lg: "md" }}
-                        maxW={{ md: "90px", lg: "120px", xl: "100%" }}
-                        isTruncated
+                        as="span"
+                        fontSize="xs"
+                        color="#31A24C"
+                        ml={2}
+                        fontWeight="normal"
                       >
-                        <>
-                          {chat.latestMessage.sender._id !== user._id
-                            ? chat.latestMessage.sender.name
-                            : "you "}
-                          : &nbsp;
-                        </>
-                        {chat.latestMessage.content.length > 50
-                          ? chat.latestMessage.content.substring(0, 51) + "..."
-                          : chat.latestMessage.content}
+                        • Active now
                       </Text>
                     )}
                   </Text>
-                </Box>
+                ) : (
+                  <Text
+                    fontSize={{ base: "lg", lg: "xl" }}
+                    className="last-message"
+                    maxW={{ md: "120px", lg: "120px", xl: "100%" }}
+                    isTruncated
+                  >
+                    {chat.chatName}
+                  </Text>
+                )}
+                <Text color="#6e6e6e" fontSize="medium">
+                  {chat.latestMessage && (
+                    <Text
+                      className="last-message"
+                      fontSize={{ base: "sm", lg: "md" }}
+                      maxW={{ md: "90px", lg: "120px", xl: "100%" }}
+                      isTruncated
+                    >
+                      <>
+                        {chat.latestMessage.sender._id !== user._id
+                          ? chat.latestMessage.sender.name
+                          : "you "}
+                        : &nbsp;
+                      </>
+                      {chat.latestMessage.content.length > 50
+                        ? chat.latestMessage.content.substring(0, 51) + "..."
+                        : chat.latestMessage.content}
+                    </Text>
+                  )}
+                </Text>
               </Box>
-            ))}
-          </Stack>
-        ) : (
-          <ChatLoading />
-        )}
+            </Box>
+          ))}
+        </Stack>
       </Box>
     </Box>
   );

@@ -3,12 +3,16 @@ import { ChatState } from "../Context/ChatProvider.jsx";
 import SideDrawer from "../components/miscellaneous/SideDrawer.jsx";
 import MyChat from "../components/MyChat.jsx";
 import ChatBox from "../components/ChatBox.jsx";
+import GlobalCallHandler from "../components/GlobalCallHandler.jsx";
 import { useState } from "react";
 let ChatPage = () => {
   const { user } = ChatState();
   const [fetchAgain, setFetchAgain] = useState(true);
   return (
     <div style={{ width: "100%" }}>
+      {/* Global Call Handler - handles incoming calls regardless of current chat */}
+      {user && <GlobalCallHandler />}
+      
       <Box
         display="flex"
         flexDirection={{ base: "column-reverse", sm: "row" }}
