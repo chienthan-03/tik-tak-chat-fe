@@ -80,7 +80,7 @@ function UpdateGroupChatModal({ fetchAgain, setFetchAgain, fetchMessages }) {
         },
       };
       const { data } = await axios.get(
-        `http://localhost:4000/api/user?search=${search}`,
+        `http://localhost:4000/api/user?search=${query}`,
         config
       );
       // console.log(data)
@@ -251,13 +251,15 @@ function UpdateGroupChatModal({ fetchAgain, setFetchAgain, fetchMessages }) {
             {loading ? (
               <Spinner size="lg" />
             ) : (
-              searchResult?.map((user) => (
-                <UserListItem
-                  key={user._id}
-                  user={user}
-                  handleFunction={() => handleAddUser(user)}
-                />
-              ))
+              searchResult
+                ?.slice(0, 3)
+                ?.map((user) => (
+                  <UserListItem
+                    key={user._id}
+                    user={user}
+                    handleFunction={() => handleAddUser(user)}
+                  />
+                ))
             )}
           </ModalBody>
 
